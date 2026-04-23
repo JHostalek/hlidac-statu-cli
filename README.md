@@ -61,13 +61,25 @@ hs raw POST '/datasety/my-dataset/zaznamy' -d '[{"Id":"1","jmeno":"Ferda"}]'
 
 Query params as `key=value` positional args; body via `-d <json>`.
 
+## for agents
+
+Programmatic discovery and structured output:
+
+```bash
+hs schema | jq                                 # full command tree as JSON
+hs --json smlouvy hledat --dotaz x             # envelope: {request,status,ok,body,error?}
+hs --dry-run smlouvy hledat --dotaz x          # resolve URL, no API call (no token needed)
+```
+
+See [AGENTS.md](./AGENTS.md) for the full agent contract.
+
 ## exit codes
 
-| code | meaning                          |
-|------|----------------------------------|
-| 0    | HTTP 2xx/3xx success             |
-| 1    | HTTP ≥400 (body still on stdout) |
-| 2    | CLI misuse (e.g. malformed flag) |
+| code | meaning                                                            |
+|------|--------------------------------------------------------------------|
+| 0    | HTTP 2xx/3xx success or `--dry-run`                                |
+| 1    | HTTP ≥400 (body still on stdout) or generic local error            |
+| 2    | Config error (missing env var) or invalid `--data` JSON            |
 
 ## coverage
 
