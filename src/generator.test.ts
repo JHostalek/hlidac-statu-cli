@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Command } from 'commander';
-import { planCommand, registerFromOpenApi } from './generator.js';
+import { getPlan, planCommand, registerFromOpenApi } from './generator.js';
 
 describe('planCommand', () => {
   test('literal-terminal GET: path segments become nested tree, no suffix', () => {
@@ -22,7 +22,7 @@ describe('planCommand', () => {
       parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
     });
     expect(plan.tree).toEqual(['smlouvy', 'get']);
-    expect(plan.pathParams).toEqual(['id']);
+    expect(plan.pathParams.map((p) => p.name)).toEqual(['id']);
   });
 
   test('param-terminal DELETE: suffix tree with "delete"', () => {
@@ -30,7 +30,7 @@ describe('planCommand', () => {
       parameters: [{ name: 'datasetId', in: 'path', required: true }],
     });
     expect(plan.tree).toEqual(['datasety', 'delete']);
-    expect(plan.pathParams).toEqual(['datasetId']);
+    expect(plan.pathParams.map((p) => p.name)).toEqual(['datasetId']);
   });
 
   test('literal-terminal non-GET: suffix tree with method name', () => {
@@ -55,7 +55,7 @@ describe('planCommand', () => {
       requestBody: {},
     });
     expect(plan.tree).toEqual(['datasety', 'zaznamy', 'post']);
-    expect(plan.pathParams).toEqual(['datasetId', 'itemId']);
+    expect(plan.pathParams.map((p) => p.name)).toEqual(['datasetId', 'itemId']);
   });
 
   test('preserves literal casing (no lowercasing)', () => {
@@ -67,7 +67,12 @@ describe('planCommand', () => {
     const plan = planCommand('/api/v2/ping/{text}', 'get', {});
     expect(plan.path).toBe('/ping/{text}');
     expect(plan.tree).toEqual(['ping', 'get']);
-    expect(plan.pathParams).toEqual(['text']);
+    expect(plan.pathParams.map((p) => p.name)).toEqual(['text']);
+  });
+
+  test('synthesizes path-param entries when OpenAPI omits them', () => {
+    const plan = planCommand('/api/v2/x/{id}', 'get', {});
+    expect(plan.pathParams).toEqual([{ name: 'id', in: 'path', required: true }]);
   });
 });
 
@@ -144,5 +149,61 @@ describe('registerFromOpenApi', () => {
       },
     });
     expect(result.registered).toBe(1);
+  });
+
+  test('encodes type and default in flag description', () => {
+    const program = new Command();
+    registerFromOpenApi(program, {
+      paths: {
+        '/api/v2/x': {
+          get: {
+            summary: 'X',
+            parameters: [
+              {
+                name: 'strana',
+                in: 'query',
+                description: 'page',
+                schema: { type: 'integer', default: 1 },
+              },
+            ],
+          },
+        },
+      },
+    });
+    const x = program.commands.find((c) => c.name() === 'x');
+    const opt = x?.options.find((o) => o.long === '--strana');
+    expect(opt?.description).toContain('integer');
+    expect(opt?.description).toContain('default 1');
+    expect(opt?.flags).toContain('<integer>');
+  });
+
+  test('parent group has no synthetic /path description', () => {
+    const program = new Command();
+    registerFromOpenApi(program, {
+      paths: {
+        '/api/v2/aitask/Check': { get: { summary: 'check' } },
+      },
+    });
+    const aitask = program.commands.find((c) => c.name() === 'aitask');
+    expect(aitask?.description()).toBe('');
+  });
+
+  test('attaches CommandPlan to leaf for schema introspection', () => {
+    const program = new Command();
+    registerFromOpenApi(program, {
+      paths: {
+        '/api/v2/smlouvy/hledat': {
+          get: {
+            summary: 'Search',
+            parameters: [{ name: 'dotaz', in: 'query', schema: { type: 'string' } }],
+          },
+        },
+      },
+    });
+    const hledat = program.commands.find((c) => c.name() === 'smlouvy')?.commands.find((c) => c.name() === 'hledat');
+    const plan = hledat ? getPlan(hledat) : undefined;
+    expect(plan?.method).toBe('GET');
+    expect(plan?.path).toBe('/smlouvy/hledat');
+    expect(plan?.queryParams.map((q) => q.name)).toEqual(['dotaz']);
   });
 });
