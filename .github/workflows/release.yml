@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   tag:
@@ -46,11 +45,6 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          registry-url: https://registry.npmjs.org
-
       - run: bun install
 
       - name: Quality gates
@@ -58,15 +52,6 @@ jobs:
           bun run lint
           bun run typecheck
           bun test
-
-      - name: Build npm bundle
-        run: bun run build:npm
-
-      - name: Verify shebang
-        run: head -1 dist/hs.js | grep -q '#!/usr/bin/env node'
-
-      - name: Publish to npm
-        run: npm publish --provenance --access public
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
