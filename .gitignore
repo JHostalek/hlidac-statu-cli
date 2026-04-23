@@ -1,0 +1,35 @@
+node_modules/
+dist/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+
+# SSL/TLS certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+
+# Credentials and secrets
+credentials.json
+secrets.yaml
+
+# IDE
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Plans (local-only by convention)
+docs/plans

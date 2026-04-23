@@ -1,0 +1,63 @@
+{
+  "name": "@jhostalek/hlidac-statu-cli",
+  "version": "0.1.0",
+  "description": "CLI wrapper for Hlídač státu — query the Czech public-contracts REST API v2 from the shell",
+  "license": "MIT",
+  "author": "Jan Hostalek",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JHostalek/hlidac-statu-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JHostalek/hlidac-statu-cli/issues"
+  },
+  "homepage": "https://github.com/JHostalek/hlidac-statu-cli#readme",
+  "keywords": [
+    "hlidac-statu",
+    "czech",
+    "transparency",
+    "public-contracts",
+    "open-data",
+    "cli",
+    "rest-api",
+    "developer-tools"
+  ],
+  "type": "module",
+  "bin": {
+    "hs": "./dist/hs.js"
+  },
+  "files": [
+    "dist/hs.js"
+  ],
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.1.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "bun build src/cli.ts --compile --outfile dist/hs",
+    "build:npm": "bun build src/cli.ts --outfile dist/hs.js --target node",
+    "build:all": "bun build src/cli.ts --compile --target=bun-linux-x64 --outfile dist/hs-linux-x64 && bun build src/cli.ts --compile --target=bun-linux-arm64 --outfile dist/hs-linux-arm64 && bun build src/cli.ts --compile --target=bun-darwin-x64 --outfile dist/hs-darwin-x64 && bun build src/cli.ts --compile --target=bun-darwin-arm64 --outfile dist/hs-darwin-arm64",
+    "dev": "bun --watch src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "bun run typecheck && bun run lint",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.12",
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "@types/node": "^22.13.4",
+    "bun-types": "^1.3.9",
+    "lefthook": "^2.1.1",
+    "typescript": "^5.7.3"
+  }
+}
