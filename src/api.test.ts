@@ -24,33 +24,36 @@ function mockResponse(status: number, body: string): Response {
 describe('hlidacRequest', () => {
   test('sends Authorization: Token <token> header and uppercases method', async () => {
     fetchMock.mockResolvedValue(mockResponse(200, '{}'));
-    await hlidacRequest('get', '/smlouvy/hledat');
-    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const result = await hlidacRequest('get', '/smlouvy/hledat');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe('GET');
     expect(init.headers).toEqual({ Authorization: 'Token test-token' });
-    expect(String(url)).toBe('https://api.hlidacstatu.cz/api/v2/smlouvy/hledat');
+    expect(url).toBe('https://api.hlidacstatu.cz/api/v2/smlouvy/hledat');
+    expect(result.method).toBe('GET');
+    expect(result.url).toBe('https://api.hlidacstatu.cz/api/v2/smlouvy/hledat');
   });
 
   test('normalizes path without leading slash', async () => {
     fetchMock.mockResolvedValue(mockResponse(200, '{}'));
     await hlidacRequest('GET', 'smlouvy/hledat');
-    const [url] = fetchMock.mock.calls[0] as [URL, RequestInit];
-    expect(String(url)).toBe('https://api.hlidacstatu.cz/api/v2/smlouvy/hledat');
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.hlidacstatu.cz/api/v2/smlouvy/hledat');
   });
 
   test('assembles query string from params, skipping undefined', async () => {
     fetchMock.mockResolvedValue(mockResponse(200, '{}'));
     await hlidacRequest('GET', '/smlouvy/hledat', { dotaz: 'ČEZ', strana: 2, missing: undefined });
-    const [url] = fetchMock.mock.calls[0] as [URL, RequestInit];
-    expect(url.searchParams.get('dotaz')).toBe('ČEZ');
-    expect(url.searchParams.get('strana')).toBe('2');
-    expect(url.searchParams.has('missing')).toBe(false);
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get('dotaz')).toBe('ČEZ');
+    expect(parsed.searchParams.get('strana')).toBe('2');
+    expect(parsed.searchParams.has('missing')).toBe(false);
   });
 
   test('sends JSON body with Content-Type when body provided', async () => {
     fetchMock.mockResolvedValue(mockResponse(200, '{}'));
     await hlidacRequest('POST', '/datasety', undefined, { hello: 'world' });
-    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe('POST');
     expect(init.headers).toEqual({ Authorization: 'Token test-token', 'Content-Type': 'application/json' });
     expect(init.body).toBe('{"hello":"world"}');
@@ -59,13 +62,29 @@ describe('hlidacRequest', () => {
   test('passes through a string body unchanged', async () => {
     fetchMock.mockResolvedValue(mockResponse(200, '{}'));
     await hlidacRequest('POST', '/raw', undefined, '{"already":"serialized"}');
-    const [, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.body).toBe('{"already":"serialized"}');
   });
 
-  test('throws HlidacStatuError when token env var absent', async () => {
+  test('throws HlidacStatuError with exit code 2 and remediation when token env var absent', async () => {
     delete process.env.HLIDAC_STATU_API_TOKEN;
-    await expect(hlidacRequest('GET', '/smlouvy/hledat')).rejects.toThrow(HlidacStatuError);
+    const promise = hlidacRequest('GET', '/smlouvy/hledat');
+    await expect(promise).rejects.toThrow(HlidacStatuError);
+    await promise.catch((err: HlidacStatuError) => {
+      expect(err.exitCode).toBe(2);
+      expect(err.message).toContain('https://www.hlidacstatu.cz/api');
+      expect(err.message).toContain('export HLIDAC_STATU_API_TOKEN');
+    });
+  });
+
+  test('dryRun returns synthetic result without calling fetch or requiring token', async () => {
+    delete process.env.HLIDAC_STATU_API_TOKEN;
+    const result = await hlidacRequest('GET', '/smlouvy/hledat', { dotaz: 'x' }, undefined, { dryRun: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.status).toBe(0);
+    expect(result.method).toBe('GET');
+    expect(result.url).toContain('?dotaz=x');
+    expect(result.body).toBeUndefined();
   });
 
   test('propagates non-2xx status without throwing', async () => {
