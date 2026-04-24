@@ -50,6 +50,12 @@ hs smlouvy get 12345 > contract.json
 hs firmy ico get 00000205 | jq -r '.jmeno, .adresa'
 ```
 
+Binary endpoints (e.g. daily contract dumps) need `-o <path>`; see [AGENTS.md](./AGENTS.md#binary-responses):
+
+```bash
+hs dumpZip get smlouvy 2026-04-21 -o smlouvy-2026-04-21.zip
+```
+
 ### escape hatch
 
 If a command you need isn't exposed as a subcommand (e.g. a spec collision, or a new endpoint we haven't pulled in), use `hs raw`:

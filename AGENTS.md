@@ -61,6 +61,44 @@ hs --dry-run smlouvy hledat --dotaz x
 # { "request": {...}, "status":0, "ok":true, "body":null, "dryRun":true }
 ```
 
+File output (`-o, --output <path>`) — write the response body to a file instead of stdout. Combines with any other mode; stderr gets a one-line `wrote N bytes to <path>` confirmation:
+
+```bash
+hs smlouvy hledat --dotaz x -o results.json         # pretty JSON → file
+hs --json smlouvy hledat --dotaz x -o envelope.json # envelope → file
+```
+
+## Binary responses
+
+Non-JSON endpoints (e.g. `GET /dumpZip/{datatype}/{date}` returns `application/zip`) **require `-o`** — the CLI will not write bytes to stdout. Without `-o`:
+
+```
+$ hs dumpZip get smlouvy 2026-04-21
+binary response (application/zip, 25782 bytes); use -o <path> to save
+# exit 1
+```
+
+With `-o`, bytes land on disk unchanged:
+
+```bash
+hs dumpZip get smlouvy 2026-04-21 -o smlouvy.zip
+# wrote 25782 bytes to smlouvy.zip (application/zip)
+```
+
+Under `--json`, the envelope for a binary response reports metadata only — `body` is `null`, and new fields `contentType` + `bodyBytes` describe what was returned:
+
+```bash
+hs --json dumpZip get smlouvy 2026-04-21
+# { "request": {...}, "status":200, "ok":true, "contentType":"application/zip", "bodyBytes":25782, "body":null }
+```
+
+To fetch the latest available dump for a datatype, resolve the date via `/dumps` first:
+
+```bash
+DATE=$(hs dumps | jq -r 'map(select(.dataType == "smlouvy")) | max_by(.date) | .date[:10]')
+hs dumpZip get smlouvy "$DATE" -o "smlouvy-$DATE.zip"
+```
+
 ## Exit codes
 
 | Code | Meaning                                                           |
