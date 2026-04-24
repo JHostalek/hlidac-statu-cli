@@ -5,6 +5,7 @@ import { type CliOutcome, emitOutcome, formatEnvelope, formatOutcome } from '../
 export interface RawOptions {
   json?: boolean;
   dryRun?: boolean;
+  output?: string;
 }
 
 export async function handleRaw(
@@ -24,8 +25,9 @@ export async function handleRaw(
   }
   const dryRun = options.dryRun === true;
   const json = options.json === true || dryRun;
+  const { output } = options;
   const result = await hlidacRequest(method, path, query, body, { dryRun });
-  return json ? formatEnvelope(result, { dryRun }) : formatOutcome(result);
+  return json ? formatEnvelope(result, { dryRun, output }) : formatOutcome(result, { output });
 }
 
 export function registerRaw(program: Command): void {
@@ -54,6 +56,7 @@ export function registerRaw(program: Command): void {
         await handleRaw(method, path, params, body, {
           json: globals.json === true,
           dryRun: globals.dryRun === true,
+          output: typeof globals.output === 'string' ? globals.output : undefined,
         }),
       );
     });

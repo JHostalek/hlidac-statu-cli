@@ -159,6 +159,7 @@ function attachAction(cmd: Command, plan: CommandPlan): void {
     const globals = cmd.optsWithGlobals();
     const dryRun = globals.dryRun === true;
     const json = globals.json === true || dryRun;
+    const output = typeof globals.output === 'string' ? globals.output : undefined;
 
     let resolvedPath = plan.path;
     for (let i = 0; i < plan.pathParams.length; i++) {
@@ -185,7 +186,7 @@ function attachAction(cmd: Command, plan: CommandPlan): void {
     }
 
     const result = await hlidacRequest(plan.method, resolvedPath, query, body, { dryRun });
-    const outcome: CliOutcome = json ? formatEnvelope(result, { dryRun }) : formatOutcome(result);
+    const outcome: CliOutcome = json ? formatEnvelope(result, { dryRun, output }) : formatOutcome(result, { output });
     emitOutcome(outcome);
   });
 
