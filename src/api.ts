@@ -13,8 +13,10 @@ export interface HlidacResult {
   method: string;
   url: string;
   status: number;
+  contentType: string;
   body: unknown;
   raw: string;
+  bytes?: Uint8Array;
 }
 
 export type QueryValue = string | number | boolean | undefined;
@@ -34,6 +36,15 @@ export interface RequestOptions {
   dryRun?: boolean;
 }
 
+// Servers may annotate JSON with `; charset=utf-8`; strip parameters before the check.
+// `text/*` is treated as text too — matches what the spec declares (text/json, text/plain)
+// and what JSON.parse can plausibly handle. Anything else → binary.
+export function isJsonish(contentType: string): boolean {
+  const normalized = contentType.split(';', 1)[0].trim().toLowerCase();
+  if (normalized === '') return false;
+  return normalized === 'application/json' || normalized.startsWith('text/');
+}
+
 export async function hlidacRequest(
   method: string,
   path: string,
@@ -45,7 +56,7 @@ export async function hlidacRequest(
   const url = buildUrl(path, query);
 
   if (options.dryRun) {
-    return { method: upperMethod, url, status: 0, body: undefined, raw: '' };
+    return { method: upperMethod, url, status: 0, contentType: '', body: undefined, raw: '' };
   }
 
   const token = process.env.HLIDAC_STATU_API_TOKEN;
@@ -64,6 +75,15 @@ export async function hlidacRequest(
   }
 
   const response = await fetch(url, init);
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (!isJsonish(contentType)) {
+    // Binary response: buffer the whole body. Adequate for current dump sizes (tens of KB);
+    // switch to streaming if endpoints start returning hundreds of MB.
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return { method: upperMethod, url, status: response.status, contentType, body: undefined, raw: '', bytes };
+  }
+
   const raw = await response.text();
   let parsed: unknown;
   try {
@@ -71,5 +91,5 @@ export async function hlidacRequest(
   } catch {
     parsed = undefined;
   }
-  return { method: upperMethod, url, status: response.status, body: parsed, raw };
+  return { method: upperMethod, url, status: response.status, contentType, body: parsed, raw };
 }

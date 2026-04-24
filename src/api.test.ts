@@ -17,8 +17,12 @@ afterEach(() => {
   else process.env.HLIDAC_STATU_API_TOKEN = originalToken;
 });
 
-function mockResponse(status: number, body: string): Response {
-  return new Response(body, { status });
+function mockResponse(status: number, body: string, contentType = 'application/json'): Response {
+  return new Response(body, { status, headers: { 'Content-Type': contentType } });
+}
+
+function mockBinaryResponse(status: number, bytes: Uint8Array, contentType = 'application/zip'): Response {
+  return new Response(bytes.buffer as ArrayBuffer, { status, headers: { 'Content-Type': contentType } });
 }
 
 describe('hlidacRequest', () => {
@@ -94,11 +98,42 @@ describe('hlidacRequest', () => {
     expect(result.body).toEqual({ message: 'forbidden' });
   });
 
-  test('returns raw text and undefined body on non-JSON response', async () => {
-    fetchMock.mockResolvedValue(mockResponse(502, '<html>Bad Gateway</html>'));
+  test('returns raw text and undefined body on unparseable JSON-ish response', async () => {
+    fetchMock.mockResolvedValue(mockResponse(502, '<html>Bad Gateway</html>', 'text/html'));
     const result = await hlidacRequest('GET', '/smlouvy/hledat');
     expect(result.status).toBe(502);
+    expect(result.contentType).toBe('text/html');
     expect(result.body).toBeUndefined();
     expect(result.raw).toBe('<html>Bad Gateway</html>');
+    expect(result.bytes).toBeUndefined();
+  });
+
+  test('binary Content-Type returns bytes, empty raw, undefined body', async () => {
+    const zipBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x00, 0x01, 0x02, 0x03]);
+    fetchMock.mockResolvedValue(mockBinaryResponse(200, zipBytes, 'application/zip'));
+    const result = await hlidacRequest('GET', '/dumpZip/smlouvy/2026-04-21');
+    expect(result.status).toBe(200);
+    expect(result.contentType).toBe('application/zip');
+    expect(result.body).toBeUndefined();
+    expect(result.raw).toBe('');
+    expect(result.bytes).toBeInstanceOf(Uint8Array);
+    expect(result.bytes?.byteLength).toBe(zipBytes.byteLength);
+    expect(Array.from(result.bytes ?? [])).toEqual(Array.from(zipBytes));
+  });
+
+  test('strips Content-Type parameters before classification', async () => {
+    fetchMock.mockResolvedValue(mockResponse(200, '{"ok":true}', 'application/json; charset=utf-8'));
+    const result = await hlidacRequest('GET', '/smlouvy/hledat');
+    expect(result.contentType).toBe('application/json; charset=utf-8');
+    expect(result.body).toEqual({ ok: true });
+    expect(result.bytes).toBeUndefined();
+  });
+
+  test('missing Content-Type falls into binary branch', async () => {
+    fetchMock.mockResolvedValue(new Response(new Uint8Array([1, 2, 3]).buffer as ArrayBuffer, { status: 200 }));
+    const result = await hlidacRequest('GET', '/dumpZip/smlouvy/2026-04-21');
+    expect(result.contentType).toBe('');
+    expect(result.bytes).toBeInstanceOf(Uint8Array);
+    expect(result.bytes?.byteLength).toBe(3);
   });
 });

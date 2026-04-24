@@ -6,6 +6,7 @@ const base = (over: Partial<HlidacResult>): HlidacResult => ({
   method: 'GET',
   url: 'https://api.hlidacstatu.cz/api/v2/x',
   status: 200,
+  contentType: 'application/json',
   body: undefined,
   raw: '',
   ...over,
