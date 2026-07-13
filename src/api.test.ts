@@ -3,18 +3,22 @@ import { HlidacStatuError, hlidacRequest } from './api.js';
 
 const originalFetch = globalThis.fetch;
 const originalToken = process.env.HLIDAC_STATU_API_TOKEN;
+const originalBaseUrl = process.env.HLIDAC_STATU_BASE_URL;
 const fetchMock = mock();
 
 beforeEach(() => {
   fetchMock.mockReset();
   globalThis.fetch = fetchMock as unknown as typeof fetch;
   process.env.HLIDAC_STATU_API_TOKEN = 'test-token';
+  delete process.env.HLIDAC_STATU_BASE_URL;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
   if (originalToken === undefined) delete process.env.HLIDAC_STATU_API_TOKEN;
   else process.env.HLIDAC_STATU_API_TOKEN = originalToken;
+  if (originalBaseUrl === undefined) delete process.env.HLIDAC_STATU_BASE_URL;
+  else process.env.HLIDAC_STATU_BASE_URL = originalBaseUrl;
 });
 
 function mockResponse(status: number, body: string, contentType = 'application/json'): Response {
@@ -79,6 +83,25 @@ describe('hlidacRequest', () => {
       expect(err.message).toContain('https://www.hlidacstatu.cz/api');
       expect(err.message).toContain('export HLIDAC_STATU_API_TOKEN');
     });
+  });
+
+  test('HLIDAC_STATU_BASE_URL overrides the API base and makes the token optional', async () => {
+    delete process.env.HLIDAC_STATU_API_TOKEN;
+    process.env.HLIDAC_STATU_BASE_URL = 'https://proxy.example/hlidac/';
+    fetchMock.mockResolvedValue(mockResponse(200, '{}'));
+    const result = await hlidacRequest('GET', '/smlouvy/hledat');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://proxy.example/hlidac/smlouvy/hledat');
+    expect(init.headers).toEqual({});
+    expect(result.status).toBe(200);
+  });
+
+  test('with HLIDAC_STATU_BASE_URL a present token is still forwarded', async () => {
+    process.env.HLIDAC_STATU_BASE_URL = 'https://proxy.example/hlidac';
+    fetchMock.mockResolvedValue(mockResponse(200, '{}'));
+    await hlidacRequest('GET', '/smlouvy/hledat');
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ Authorization: 'Token test-token' });
   });
 
   test('dryRun returns synthetic result without calling fetch or requiring token', async () => {

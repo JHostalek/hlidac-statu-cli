@@ -25,6 +25,12 @@ Get a token at https://www.hlidacstatu.cz/api and export it:
 export HLIDAC_STATU_API_TOKEN=<your-token>
 ```
 
+To route requests through an authenticating proxy instead (the proxy injects the token server-side), set `HLIDAC_STATU_BASE_URL`; the local token then becomes optional:
+
+```bash
+export HLIDAC_STATU_BASE_URL=https://my-control-plane.example/api/hlidac
+```
+
 ## usage
 
 ```bash

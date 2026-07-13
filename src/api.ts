@@ -1,4 +1,10 @@
-const BASE_URL = 'https://api.hlidacstatu.cz/api/v2';
+const DEFAULT_BASE_URL = 'https://api.hlidacstatu.cz/api/v2';
+
+// HLIDAC_STATU_BASE_URL points hs at an authenticating proxy (e.g. an agent control plane that
+// injects the API token server-side). With the override set, the local token becomes optional.
+function baseUrl(): string {
+  return (process.env.HLIDAC_STATU_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
+}
 
 export class HlidacStatuError extends Error {
   readonly exitCode: number;
@@ -23,7 +29,7 @@ export type QueryValue = string | number | boolean | undefined;
 
 export function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = new URL(BASE_URL + normalizedPath);
+  const url = new URL(baseUrl() + normalizedPath);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -60,14 +66,15 @@ export async function hlidacRequest(
   }
 
   const token = process.env.HLIDAC_STATU_API_TOKEN;
-  if (!token) {
+  if (!token && !process.env.HLIDAC_STATU_BASE_URL) {
     throw new HlidacStatuError(
       'HLIDAC_STATU_API_TOKEN is not set. Get a token at https://www.hlidacstatu.cz/api and export it:\n  export HLIDAC_STATU_API_TOKEN=<your-token>',
       2,
     );
   }
 
-  const headers: Record<string, string> = { Authorization: `Token ${token}` };
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Token ${token}`;
   const init: RequestInit = { method: upperMethod, headers };
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
