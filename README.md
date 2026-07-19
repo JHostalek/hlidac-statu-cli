@@ -25,6 +25,12 @@ Get a token at https://www.hlidacstatu.cz/api and export it:
 export HLIDAC_STATU_API_TOKEN=<your-token>
 ```
 
+To route requests through an authenticating proxy instead (the proxy injects the token server-side), set `HLIDAC_STATU_BASE_URL`; the local token then becomes optional:
+
+```bash
+export HLIDAC_STATU_BASE_URL=https://my-control-plane.example/api/hlidac
+```
+
 ## usage
 
 ```bash
@@ -50,6 +56,12 @@ hs smlouvy get 12345 > contract.json
 hs firmy ico get 00000205 | jq -r '.jmeno, .adresa'
 ```
 
+Binary endpoints (e.g. daily contract dumps) need `-o <path>`; see [AGENTS.md](./AGENTS.md#binary-responses):
+
+```bash
+hs dumpZip get smlouvy 2026-04-21 -o smlouvy-2026-04-21.zip
+```
+
 ### escape hatch
 
 If a command you need isn't exposed as a subcommand (e.g. a spec collision, or a new endpoint we haven't pulled in), use `hs raw`:
@@ -61,13 +73,25 @@ hs raw POST '/datasety/my-dataset/zaznamy' -d '[{"Id":"1","jmeno":"Ferda"}]'
 
 Query params as `key=value` positional args; body via `-d <json>`.
 
+## for agents
+
+Programmatic discovery and structured output:
+
+```bash
+hs schema | jq                                 # full command tree as JSON
+hs --json smlouvy hledat --dotaz x             # envelope: {request,status,ok,body,error?}
+hs --dry-run smlouvy hledat --dotaz x          # resolve URL, no API call (no token needed)
+```
+
+See [AGENTS.md](./AGENTS.md) for the full agent contract.
+
 ## exit codes
 
-| code | meaning                          |
-|------|----------------------------------|
-| 0    | HTTP 2xx/3xx success             |
-| 1    | HTTP ≥400 (body still on stdout) |
-| 2    | CLI misuse (e.g. malformed flag) |
+| code | meaning                                                            |
+|------|--------------------------------------------------------------------|
+| 0    | HTTP 2xx/3xx success or `--dry-run`                                |
+| 1    | HTTP ≥400 (body still on stdout) or generic local error            |
+| 2    | Config error (missing env var) or invalid `--data` JSON            |
 
 ## coverage
 

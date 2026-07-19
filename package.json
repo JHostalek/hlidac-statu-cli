@@ -1,6 +1,6 @@
 {
   "name": "@jhostalek/hlidac-statu-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI wrapper for Hlídač státu — query the Czech public-contracts REST API v2 from the shell",
   "license": "MIT",
   "author": "Jan Hostalek",
