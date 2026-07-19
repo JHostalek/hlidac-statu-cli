@@ -11,7 +11,7 @@ const program = new Command();
 program
   .name('hs')
   .description('CLI wrapper for the Hlídač státu REST API v2 (https://api.hlidacstatu.cz)')
-  .version('0.1.0')
+  .version('0.2.0')
   .option('--json', 'emit a JSON envelope { request, status, ok, body, error? } to stdout')
   .option('--dry-run', 'resolve the request URL but do not call the API; implies --json shape')
   .option(
