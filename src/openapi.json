@@ -1,8 +1,8 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.4",
   "info": {
-    "title": "HlidacStatu Api 2.4.3.0",
-    "description": "REST API Hlídače státu",
+    "title": "HlidacStatu Api 2.5.0.1",
+    "description": "REST API Hlídače státu\n\nRate limiting: maximálně 4 požadavky za sekundu na klienta.",
     "termsOfService": "https://www.hlidacstatu.cz/texty/provoznipodminky/",
     "contact": {
       "name": "Hlídač státu",
@@ -18,7 +18,9 @@
   "paths": {
     "/api/v2/ping/{text}": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "parameters": [
           {
             "name": "text",
@@ -52,15 +54,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/getexception": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "parameters": [
           {
             "name": "exceptionText",
@@ -93,15 +95,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/getmyip": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -125,15 +127,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/Check": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "parameters": [
           {
             "name": "returnStatus",
@@ -151,15 +153,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/dumps": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -192,15 +194,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/dumpItems/{datatype}": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "parameters": [
           {
             "name": "datatype",
@@ -226,15 +228,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/dumpZip/{datatype}/{date}": {
       "get": {
-        "tags": ["ApiV2"],
+        "tags": [
+          "ApiV2"
+        ],
         "parameters": [
           {
             "name": "datatype",
@@ -260,15 +262,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/CreateTask": {
       "post": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "summary": "Vytvori task a ulozi do fronty. Vrati id tasku",
         "parameters": [
           {
@@ -317,34 +319,37 @@
               "text/plain": {
                 "schema": {
                   "type": "integer",
-                  "format": "int64"
+                  "format": "int64",
+                  "nullable": true
                 }
               },
               "application/json": {
                 "schema": {
                   "type": "integer",
-                  "format": "int64"
+                  "format": "int64",
+                  "nullable": true
                 }
               },
               "text/json": {
                 "schema": {
                   "type": "integer",
-                  "format": "int64"
+                  "format": "int64",
+                  "nullable": true
                 }
               }
             }
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/Check": {
       "get": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "parameters": [
           {
             "name": "returnStatus",
@@ -362,15 +367,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/GetNextTask": {
       "get": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "summary": "Vrátí taskID pro Voice2Text Docker image",
         "parameters": [
           {
@@ -425,15 +430,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/TaskDone": {
       "post": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "summary": "Potvrdí ukončení Voice2Text operace",
         "requestBody": {
           "content": {
@@ -470,15 +475,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/SetTaskStatus": {
       "get": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "parameters": [
           {
             "name": "qId",
@@ -502,15 +507,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/RestartTask": {
       "get": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "parameters": [
           {
             "name": "qId",
@@ -552,15 +557,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/aitask/GetTasks": {
       "get": {
-        "tags": ["ApiV2AITask"],
+        "tags": [
+          "ApiV2AITask"
+        ],
         "parameters": [
           {
             "name": "maxItems",
@@ -624,15 +629,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/datasety": {
       "get": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Načte seznam datasetů",
         "responses": {
           "200": {
@@ -657,13 +662,13 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       },
       "post": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Vytvoří nový dataset",
         "description": "Ukázkový požadavek:\r\nhttps://raw.githubusercontent.com/HlidacStatu/API/master/v2/create_dataset.example.json",
         "requestBody": {
@@ -722,13 +727,13 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       },
       "put": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Update datasetu.",
         "description": "Není možné změnit hodnoty jsonSchema a datasetId. Pokud je potřebuješ změnit, \r\nmusíš datovou sadu smazat a zaregistrovat znovu.\r\n\r\nUkázkový požadavek:\r\nhttps://raw.githubusercontent.com/HlidacStatu/API/master/v2/create_dataset.example.json",
         "requestBody": {
@@ -784,15 +789,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/datasety/{datasetId}": {
       "get": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Detail konkrétního datasetu",
         "parameters": [
           {
@@ -828,13 +833,13 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       },
       "delete": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Smazání datasetu",
         "parameters": [
           {
@@ -870,15 +875,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/datasety/{datasetId}/hledat": {
       "get": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Vyhledávání v položkách datasetu",
         "parameters": [
           {
@@ -931,32 +936,32 @@
             "content": {
               "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+                  "$ref": "#/components/schemas/HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
                 }
               },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+                  "$ref": "#/components/schemas/HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
                 }
               },
               "text/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+                  "$ref": "#/components/schemas/HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
                 }
               }
             }
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/datasety/{datasetId}/zaznamy/{itemId}": {
       "get": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Detail konkrétní položky z datasetu",
         "parameters": [
           {
@@ -984,13 +989,13 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       },
       "post": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Vloží nebo updatuje záznam v datasetu",
         "parameters": [
           {
@@ -1064,15 +1069,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/datasety/{datasetId}/zaznamy": {
       "post": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Hromadné vkládání záznamů",
         "description": "Pokud záznamy s daným ID existují, tak budou přepsány.\r\n\r\n    Ukázkový požadavek:  \r\n    \r\n    [\r\n    \t{\r\n    \t\t\"HsProcessType\": \"person\",\r\n    \t\t\"Id\": \"2\",\r\n    \t\t\"jmeno\": \"Ferda\",\r\n    \t\t\"prijmeni\": \"Mravenec\",\r\n    \t\t\"narozeni\": \"2018-11-13T20:20:39+00:00\"\r\n    \t},\r\n    \t{\r\n    \t\t\"HsProcessType\": \"document\",\r\n    \t\t\"Id\": \"broukpytlik\",\r\n    \t\t\"jmeno\": \"Brouk\",\r\n    \t\t\"prijmeni\": \"Pytlík\",\r\n    \t\t\"narozeni\": \"2017-12-10T00:00:00+00:00\",\r\n    \t\t\"DocumentUrl\": \"www.hlidacstatu.cz\",\r\n    \t\t\"DocumentPlainText\": null\r\n    \t}\r\n    ]",
         "parameters": [
@@ -1138,15 +1143,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/datasety/{datasetId}/zaznamy/{itemId}/existuje": {
       "get": {
-        "tags": ["ApiV2Datasety"],
+        "tags": [
+          "ApiV2Datasety"
+        ],
         "summary": "Kontrola, jestli záznam existuje v datasetu",
         "parameters": [
           {
@@ -1191,15 +1196,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/dotace/hledat": {
       "get": {
-        "tags": ["ApiV2Dotace"],
+        "tags": [
+          "ApiV2Dotace"
+        ],
         "summary": "Vyhledá dotace",
         "parameters": [
           {
@@ -1252,15 +1257,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/dotace/{id}": {
       "get": {
-        "tags": ["ApiV2Dotace"],
+        "tags": [
+          "ApiV2Dotace"
+        ],
         "summary": "Vrátí detail jedné Dotace.",
         "parameters": [
           {
@@ -1296,15 +1301,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/firmy/ico/{ico}": {
       "get": {
-        "tags": ["ApiV2Firmy"],
+        "tags": [
+          "ApiV2Firmy"
+        ],
         "summary": "Vyhledá firmu v databázi Hlídače státu.",
         "parameters": [
           {
@@ -1340,15 +1345,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/firmy/{jmenoFirmy}": {
       "get": {
-        "tags": ["ApiV2Firmy"],
+        "tags": [
+          "ApiV2Firmy"
+        ],
         "summary": "Vyhledá firmu v databázi Hlídače státu.",
         "parameters": [
           {
@@ -1384,15 +1389,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/firmy/social": {
       "get": {
-        "tags": ["ApiV2Firmy"],
+        "tags": [
+          "ApiV2Firmy"
+        ],
         "parameters": [
           {
             "name": "typ",
@@ -1434,15 +1439,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/firmy/GetDetailInfo": {
       "get": {
-        "tags": ["ApiV2Firmy"],
+        "tags": [
+          "ApiV2Firmy"
+        ],
         "summary": "Vrátí detailní informace o firmách na základě IČO nebo názvů firem.",
         "parameters": [
           {
@@ -1494,15 +1499,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/insolvence/hledat": {
       "get": {
-        "tags": ["ApiV2Insolvence"],
+        "tags": [
+          "ApiV2Insolvence"
+        ],
         "summary": "Vyhledá smlouvy v databázi smluv",
         "description": "Toto API je pouze pro držitele komerční licence. Kontaktujte nás na api@hlidacstatu.cz.",
         "parameters": [
@@ -1556,15 +1561,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/insolvence/{id}": {
       "get": {
-        "tags": ["ApiV2Insolvence"],
+        "tags": [
+          "ApiV2Insolvence"
+        ],
         "summary": "Vrátí detail jedné smlouvy.",
         "description": "Toto API je pouze pro držitele komerční licence. Kontaktujte nás na api@hlidacstatu.cz.",
         "parameters": [
@@ -1601,15 +1606,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/ocr/Save": {
       "post": {
-        "tags": ["ApiV2OCR"],
+        "tags": [
+          "ApiV2OCR"
+        ],
         "requestBody": {
           "content": {
             "text/plain": {
@@ -1645,15 +1650,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/ocr/AddTask": {
       "get": {
-        "tags": ["ApiV2OCR"],
+        "tags": [
+          "ApiV2OCR"
+        ],
         "parameters": [
           {
             "name": "itemType",
@@ -1736,15 +1741,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/ocr/Stats": {
       "get": {
-        "tags": ["ApiV2OCR"],
+        "tags": [
+          "ApiV2OCR"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -1768,15 +1773,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/osoby/{osobaId}": {
       "get": {
-        "tags": ["ApiV2Osoby"],
+        "tags": [
+          "ApiV2Osoby"
+        ],
         "summary": "Vypíše detail osoby na základě \"osobaId\" parametru.",
         "parameters": [
           {
@@ -1812,15 +1817,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/osoby/hledatFtx": {
       "get": {
-        "tags": ["ApiV2Osoby"],
+        "tags": [
+          "ApiV2Osoby"
+        ],
         "summary": "Vyhledání osoby podle jména v textu",
         "parameters": [
           {
@@ -1883,15 +1888,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/osoby/PolitikFromText": {
       "get": {
-        "tags": ["ApiV2Osoby"],
+        "tags": [
+          "ApiV2Osoby"
+        ],
         "parameters": [
           {
             "name": "text",
@@ -1907,15 +1912,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/osoby/PoliticiFromText": {
       "get": {
-        "tags": ["ApiV2Osoby"],
+        "tags": [
+          "ApiV2Osoby"
+        ],
         "parameters": [
           {
             "name": "text",
@@ -1931,15 +1936,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/osoby/hledat": {
       "get": {
-        "tags": ["ApiV2Osoby"],
+        "tags": [
+          "ApiV2Osoby"
+        ],
         "parameters": [
           {
             "name": "jmeno",
@@ -2003,15 +2008,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/osoby/social": {
       "get": {
-        "tags": ["ApiV2Osoby"],
+        "tags": [
+          "ApiV2Osoby"
+        ],
         "summary": "",
         "parameters": [
           {
@@ -2055,15 +2060,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/smlouvy/hledat": {
       "get": {
-        "tags": ["ApiV2Smlouvy"],
+        "tags": [
+          "ApiV2Smlouvy"
+        ],
         "summary": "Vyhledá smlouvy v databázi smluv",
         "parameters": [
           {
@@ -2116,15 +2121,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/smlouvy/{id}": {
       "get": {
-        "tags": ["ApiV2Smlouvy"],
+        "tags": [
+          "ApiV2Smlouvy"
+        ],
         "summary": "Vrátí detail jedné smlouvy.",
         "parameters": [
           {
@@ -2160,15 +2165,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/smlouvy/vsechnaID": {
       "get": {
-        "tags": ["ApiV2Smlouvy"],
+        "tags": [
+          "ApiV2Smlouvy"
+        ],
         "summary": "všechna ID platných verzí smluv. (API pouze pro komerční licence)",
         "responses": {
           "200": {
@@ -2202,15 +2207,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/smlouvy/text/{id}": {
       "get": {
-        "tags": ["ApiV2Smlouvy"],
+        "tags": [
+          "ApiV2Smlouvy"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2261,15 +2266,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/smlouvy/predmet/{id}": {
       "get": {
-        "tags": ["ApiV2Smlouvy"],
+        "tags": [
+          "ApiV2Smlouvy"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2303,15 +2308,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/sponzoring/{icoPrijemce}": {
       "get": {
-        "tags": ["ApiV2Sponzoring"],
+        "tags": [
+          "ApiV2Sponzoring"
+        ],
         "summary": "Vypíše seznam darů obdržených politickou stranou.",
         "parameters": [
           {
@@ -2356,15 +2361,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/tbls/AddTask": {
       "get": {
-        "tags": ["ApiV2TablesInDoc"],
+        "tags": [
+          "ApiV2TablesInDoc"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -2405,15 +2410,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/tbls/Stats": {
       "get": {
-        "tags": ["ApiV2TablesInDoc"],
+        "tags": [
+          "ApiV2TablesInDoc"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2437,15 +2442,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/CreateTask": {
       "post": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "summary": "Vytvori task a ulozi do fronty. Vrati id tasku",
         "parameters": [
           {
@@ -2494,34 +2499,37 @@
               "text/plain": {
                 "schema": {
                   "type": "integer",
-                  "format": "int64"
+                  "format": "int64",
+                  "nullable": true
                 }
               },
               "application/json": {
                 "schema": {
                   "type": "integer",
-                  "format": "int64"
+                  "format": "int64",
+                  "nullable": true
                 }
               },
               "text/json": {
                 "schema": {
                   "type": "integer",
-                  "format": "int64"
+                  "format": "int64",
+                  "nullable": true
                 }
               }
             }
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/Check": {
       "get": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "parameters": [
           {
             "name": "returnStatus",
@@ -2539,15 +2547,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/GetNextTask": {
       "get": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "summary": "Vrátí taskID pro Voice2Text Docker image",
         "parameters": [
           {
@@ -2581,15 +2589,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/TaskDone": {
       "post": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "summary": "Potvrdí ukončení Voice2Text operace",
         "requestBody": {
           "content": {
@@ -2626,15 +2634,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/SetTaskStatus": {
       "get": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "parameters": [
           {
             "name": "qId",
@@ -2658,15 +2666,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/RestartTask": {
       "get": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "parameters": [
           {
             "name": "qId",
@@ -2708,15 +2716,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/voice2text/GetTasks": {
       "get": {
-        "tags": ["ApiV2Voice2Text"],
+        "tags": [
+          "ApiV2Voice2Text"
+        ],
         "parameters": [
           {
             "name": "maxItems",
@@ -2780,17 +2788,17 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/verejnezakazky/{id}": {
       "get": {
-        "tags": ["ApiV2VZ"],
+        "tags": [
+          "ApiV2VZ"
+        ],
         "summary": "Detail veřejné zakázky",
-        "description": "Toto API je pouze pro držitele komerční licence. Kontaktujte nás na api@hlidacstatu.cz.",
+        "description": "Toto API je pouze pro držitele komerční licence, více informací naleznete na https://www.hlidacstatu.cz/api/v1/komercni-licence \r\n\r\n\r\nV rámci testování je toto API dostupné pouze na vyzkoušení v počtu max. 50 API requestů bez komerční licence.\r\n\r\n",
         "parameters": [
           {
             "name": "id",
@@ -2825,22 +2833,121 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/verejnezakazky/hledat": {
       "get": {
-        "tags": ["ApiV2VZ"],
+        "tags": [
+          "ApiV2VZ"
+        ],
         "summary": "Vyhledá veřejné zakázky v databázi Hlídače smluv",
-        "description": "Toto API je pouze pro držitele komerční licence. Kontaktujte nás na api@hlidacstatu.cz.",
+        "description": "Toto API je pouze pro držitele komerční licence, více informací naleznete na https://www.hlidacstatu.cz/api/v1/komercni-licence.\r\n\r\n\r\nV rámci testování je toto API dostupné pouze na vyzkoušení v počtu max. 50 API requestů bez komerční licence.\r\n\r\n\r\nParametry lze libovolně kombinovat. Strukturované parametry (cpv, oblast, data, ceny, ico)\r\nse spojují s fulltextovým dotazem operátorem AND. Je nutné zadat alespoň jeden parametr.",
         "parameters": [
           {
             "name": "dotaz",
             "in": "query",
             "description": "fulltext dotaz dle <a href=\"https://www.hlidacstatu.cz/napoveda\">syntaxe</a>",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cpv",
+            "in": "query",
+            "description": "CPV kódy oddělené čárkou, středníkem nebo svislítkem (prefixový match), např. \"30,72,48\"",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "oblast",
+            "in": "query",
+            "description": "skupina CPV (oblast VZ) – číselný identifikátor nebo kód, např. \"1\" nebo \"IT\". Seznam vrací endpoint /oblasti",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "zverejnenoOd",
+            "in": "query",
+            "description": "datum zveřejnění (vznik VZ) od (včetně)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "zverejnenoDo",
+            "in": "query",
+            "description": "datum zveřejnění (vznik VZ) do (včetně)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "podepsanoOd",
+            "in": "query",
+            "description": "datum uzavření smlouvy od (včetně)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "podepsanoDo",
+            "in": "query",
+            "description": "datum uzavření smlouvy do (včetně)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "zmenaOd",
+            "in": "query",
+            "description": "datum poslední změny VZ od (včetně)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "zmenaDo",
+            "in": "query",
+            "description": "datum poslední změny VZ do (včetně)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "cenaOd",
+            "in": "query",
+            "description": "cena bez DPH (konečná nebo odhadovaná) od (včetně)",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "cenaDo",
+            "in": "query",
+            "description": "cena bez DPH (konečná nebo odhadovaná) do (včetně)",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "ico",
+            "in": "query",
+            "description": "IČO zadavatele nebo dodavatele",
             "schema": {
               "type": "string"
             }
@@ -2857,7 +2964,7 @@
           {
             "name": "razeni",
             "in": "query",
-            "description": "pořadí výsledků: \r\n\r\n0: podle relevance\r\n\r\n1: nově zveřejněné první\r\n\r\n2: nově zveřejněné poslední\r\n\r\n3: nejlevnější první\r\n\r\n4: nejdražší první\r\n\r\n5: nově uzavřené první\r\n\r\n6: nově uzavřené poslední\r\n\r\n8: podle odběratele\r\n\r\n9: podle dodavatele\r\n",
+            "description": "pořadí výsledků: \r\n\r\n0: podle relevance\r\n\r\n1: nově zveřejněné první\r\n\r\n2: nově zveřejněné poslední\r\n\r\n3: nejlevnější první\r\n\r\n4: nejdražší první\r\n\r\n5: nově uzavřené první\r\n\r\n6: nově uzavřené poslední\r\n\r\n8: podle odběratele\r\n\r\n9: podle dodavatele\r\n\r\n10: nově změněné první (podle data poslední změny)\r\n",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -2887,15 +2994,58 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
+          {}
+        ]
+      }
+    },
+    "/api/v2/verejnezakazky/CpvOblasti": {
+      "get": {
+        "tags": [
+          "ApiV2VZ"
+        ],
+        "summary": "Číselník oblastí veřejných zakázek (skupiny CPV kódů) použitelných v parametru oblast.",
+        "description": "Toto API je pouze pro držitele komerční licence. Kontaktujte nás na api@hlidacstatu.cz.\r\n\r\n\r\nV rámci testování je toto API dostupné pouze na vyzkoušení v počtu max. 50 API requestů bez komerční licence.\r\n\r\n",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HlidacStatuApi.Models.CpvSkupinaDTO"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HlidacStatuApi.Models.CpvSkupinaDTO"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HlidacStatuApi.Models.CpvSkupinaDTO"
+                  }
+                }
+              }
+            }
           }
+        },
+        "security": [
+          {}
         ]
       }
     },
     "/api/v2/Weby": {
       "get": {
-        "tags": ["ApiV2Weby"],
+        "tags": [
+          "ApiV2Weby"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2928,15 +3078,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/Weby/domeny": {
       "get": {
-        "tags": ["ApiV2Weby"],
+        "tags": [
+          "ApiV2Weby"
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2960,15 +3110,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/Weby/nedostupnost": {
       "get": {
-        "tags": ["ApiV2Weby"],
+        "tags": [
+          "ApiV2Weby"
+        ],
         "parameters": [
           {
             "name": "days",
@@ -3011,15 +3161,15 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     },
     "/api/v2/Weby/{id}": {
       "get": {
-        "tags": ["ApiV2Weby"],
+        "tags": [
+          "ApiV2Weby"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -3063,9 +3213,7 @@
           }
         },
         "security": [
-          {
-            "apiKey": []
-          }
+          {}
         ]
       }
     }
@@ -3108,7 +3256,14 @@
         "additionalProperties": false
       },
       "Devmasters.SpeechToText.Term+TermCharacter": {
-        "enum": [0, 1, 2, 3, 4, -1],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          -1
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -3192,7 +3347,15 @@
         "additionalProperties": false
       },
       "HlidacStatu.DS.Api.AITask.Task+CheckState": {
-        "enum": [0, 1, 2, 3, 100, -2, -1],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          100,
+          -2,
+          -1
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -3209,17 +3372,17 @@
           },
           "ico": {
             "type": "string",
-            "description": "Unique identifier of the legal entity.",
+            "description": "IČO of the entity.",
             "nullable": true
           },
-          "jmeno": {
+          "name": {
             "type": "string",
-            "description": "Name of the legal entity.",
+            "description": "Name of the entity.",
             "nullable": true
           },
-          "kraj": {
+          "region": {
             "type": "string",
-            "description": "Region of the legal entity, if applicable. This is often used for government offices or municipalities.",
+            "description": "Region (kraj) of the entity, if applicable. Used mainly for government offices and municipalities.",
             "nullable": true
           }
         },
@@ -3238,27 +3401,31 @@
           },
           "ico": {
             "type": "string",
+            "description": "IČO of the entity.",
             "nullable": true
           },
-          "charakter": {
-            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektInfo+CharakterEnum"
+          "entity_Type": {
+            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektInfo+EntityTypeEnum"
           },
-          "nazev": {
+          "name": {
             "type": "string",
+            "description": "Full registered name of the entity.",
             "nullable": true
           },
-          "business_info": {
+          "business_Info": {
             "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektFinancialInfo"
           },
-          "rizika": {
+          "risks": {
             "type": "string",
+            "description": "Risk summary of the entity (Czech text).",
             "nullable": true
           },
-          "kategorie_Organu_Verejne_Moci": {
+          "public_Authority_Categories": {
             "type": "array",
             "items": {
               "type": "string"
             },
+            "description": "Categories of public authority (orgán veřejné moci) the entity belongs to, if any. Czech names.",
             "nullable": true
           },
           "kIndex": {
@@ -3266,65 +3433,94 @@
             "items": {
               "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+KIndexData"
             },
+            "description": "K-Index (Index of key contracting risks) per year.",
             "nullable": true
           },
-          "statistika_Registr_Smluv": {
-            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SmlouvyData"
+          "contracts_Statistics_Total": {
+            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+ContractsStatistics"
           },
-          "statistika_Registr_Smluv_pro_Holding": {
-            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SmlouvyData"
+          "contracts_Statistics_Holding_Total": {
+            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+ContractsStatistics"
           },
-          "statistiky_Registr_Smluv_po_Letech": {
+          "contracts_Statistics_By_Year": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SmlouvyData"
+              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+ContractsStatistics"
             },
+            "description": "Contracts with the state per year (last 4 years).",
             "nullable": true
           },
-          "statisticky_Registr_Smluv_pro_Holding_po_Letech": {
+          "contracts_Statistics_Holding_By_Year": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SmlouvyData"
+              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+ContractsStatistics"
             },
+            "description": "Contracts with the state of the whole holding per year (last 4 years).",
             "nullable": true
           },
-          "statistika_Dotace": {
-            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+DotaceData"
+          "subsidies_Statistics_Total": {
+            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SubsidiesStatistics"
           },
-          "statistika_Dotace_pro_Holding": {
-            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+DotaceData"
+          "subsidies_Statistics_Holding_Total": {
+            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SubsidiesStatistics"
           },
-          "statistika_Dotace_po_Letech": {
+          "subsidies_Statistics_By_Year": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+DotaceData"
+              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SubsidiesStatistics"
             },
+            "description": "Subsidies received per year (last 4 years).",
             "nullable": true
           },
-          "statistika_Dotace_pro_Holding_po_Letech": {
+          "subsidies_Statistics_Holding_By_Year": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+DotaceData"
+              "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SubsidiesStatistics"
             },
+            "description": "Subsidies received by the whole holding per year (last 4 years).",
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+DotaceData": {
+      "HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+ContractsStatistics": {
         "type": "object",
         "properties": {
-          "rok": {
+          "year": {
             "type": "integer",
+            "description": "Calendar year. 0 = total over all years since 2016.",
             "format": "int32"
           },
-          "pocet_Dotaci": {
+          "contracts_Count": {
             "type": "integer",
-            "format": "int32"
+            "format": "int64"
           },
-          "celkem_Prideleno": {
+          "total_Contracts_Value_CZK": {
             "type": "number",
             "format": "double"
+          },
+          "contracts_Without_Price_Count": {
+            "type": "integer",
+            "description": "Number of contracts with a hidden or missing price.",
+            "format": "int64"
+          },
+          "contracts_Close_To_Procurement_Limit_Count": {
+            "type": "integer",
+            "description": "Number of contracts with a price just below the public-procurement legal threshold (a common evasion pattern).",
+            "format": "int64"
+          },
+          "contracts_With_Serious_Issues_Count": {
+            "type": "integer",
+            "description": "Number of contracts with serious legal issues.",
+            "format": "int64"
+          },
+          "main_Categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Top 3 contract categories of the entity (Czech names).",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -3332,58 +3528,43 @@
       "HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+KIndexData": {
         "type": "object",
         "properties": {
-          "rok": {
+          "year": {
             "type": "integer",
             "format": "int32"
           },
           "kIndex": {
             "type": "string",
+            "description": "K-Index grade: A (best) to F (worst).",
             "nullable": true
           },
-          "popis": {
+          "description": {
             "type": "string",
+            "description": "Short explanation of the grade (Czech text).",
             "nullable": true
           },
-          "obrazek_Url": {
+          "image_Url": {
             "type": "string",
+            "description": "URL of the image visualizing the grade.",
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SmlouvyData": {
+      "HlidacStatu.DS.Api.Firmy.SubjektDetailInfo+SubsidiesStatistics": {
         "type": "object",
         "properties": {
-          "rok": {
+          "year": {
+            "type": "integer",
+            "description": "Calendar year. 0 = total over all years.",
+            "format": "int32"
+          },
+          "subsidies_Count": {
             "type": "integer",
             "format": "int32"
           },
-          "pocetSmluv": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "celkovaHodnotaSmluv": {
+          "total_Awarded_CZK": {
             "type": "number",
             "format": "double"
-          },
-          "pocetSmluvBezCeny": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "pocetSmluvULimitu": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "pocetSmluvSeZasadnimNedostatkem": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "hlavniOblasti": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -3401,98 +3582,100 @@
           },
           "ico": {
             "type": "string",
+            "description": "IČO of the entity.",
             "nullable": true
           },
-          "jmeno_Firmy": {
+          "name": {
             "type": "string",
+            "description": "Full registered name of the entity.",
             "nullable": true
           },
-          "omezeni_Cinnosti": {
+          "activity_Restrictions": {
             "type": "string",
+            "description": "Restrictions of activity (Czech text), e.g. 'v likvidaci', 'v insolvenci', 'v nucené správě', 'zaniklý subjekt', 'pozastavená činnost'. Null = normally operating entity.",
             "nullable": true
           },
-          "charakter_Firmy": {
-            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektInfo+CharakterEnum"
+          "entity_Type": {
+            "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SubjektInfo+EntityTypeEnum"
           },
-          "kategorie_Organu_Verejne_Moci": {
+          "public_Authority_Categories": {
             "type": "array",
             "items": {
               "type": "string"
             },
+            "description": "Categories of public authority (orgán veřejné moci) the entity belongs to, if any. Czech names.",
             "nullable": true
           },
-          "pocet_Zamestnancu": {
+          "employees_Count": {
             "type": "string",
+            "description": "Number of employees (Czech text range, e.g. '25-49 zaměstnanců').",
             "nullable": true
           },
-          "obor_Podnikani": {
+          "business_Sector": {
             "type": "string",
+            "description": "Main business sector (Czech text).",
             "nullable": true
           },
-          "obrat": {
+          "annual_Turnover": {
             "type": "string",
+            "description": "Annual turnover (Czech text range).",
             "nullable": true
           },
-          "platce_DPH": {
+          "vaT_Payer": {
             "type": "string",
+            "description": "VAT payer status (Czech text). Null = unknown.",
             "nullable": true
           },
-          "je_nespolehlivym_platcem_DPHKod": {
+          "unreliable_VAT_Payer": {
             "type": "string",
+            "description": "Set when the entity is registered as an unreliable VAT payer. Null = not unreliable.",
             "nullable": true
           },
-          "ma_dluh_vzp": {
+          "health_Insurance_Debt": {
             "type": "string",
+            "description": "Set when the entity has a debt towards the public health insurance company VZP. Null = no known debt.",
             "nullable": true
           },
-          "kod_Okresu": {
-            "type": "string",
-            "nullable": true
-          },
-          "iczuj": {
-            "type": "string",
-            "nullable": true
-          },
-          "kodadm": {
-            "type": "string",
-            "nullable": true
-          },
-          "adresa": {
-            "type": "string",
-            "nullable": true
-          },
-          "psc": {
-            "type": "string",
-            "nullable": true
-          },
-          "obec": {
-            "type": "string",
-            "nullable": true
-          },
-          "osoby_s_vazbou_na_firmu": {
+          "related_Persons": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/HlidacStatu.DS.Api.Osoba.ListItem"
             },
+            "description": "Persons related to the entity (management, statutory bodies, owners) known to Hlídač státu.",
             "nullable": true
           },
-          "dcerine_spolecnosti": {
+          "subsidiaries": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/HlidacStatu.DS.Api.Firmy.SimpleDetailInfo"
             },
+            "description": "Subsidiaries of the entity.",
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "HlidacStatu.DS.Api.Firmy.SubjektInfo+CharakterEnum": {
-        "enum": [0, 1, 2, 3, 4, 5, 6, 7, -1],
-        "type": "integer",
-        "format": "int32"
+      "HlidacStatu.DS.Api.Firmy.SubjektInfo+EntityTypeEnum": {
+        "enum": [
+          "PrivateCompany",
+          "StateOwnedCompany",
+          "PartiallyStateOwnedCompany",
+          "StateAuthority",
+          "Municipality",
+          "NonProfitOrganization",
+          "ForeignCompany",
+          "PoliticalParty",
+          "Unknown"
+        ],
+        "type": "string"
       },
       "HlidacStatu.DS.Api.OcrWork+DocTypes": {
-        "enum": [0, 1, 2, 3],
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -3574,7 +3757,12 @@
         "additionalProperties": false
       },
       "HlidacStatu.DS.Api.OcrWork+Result+ResultStatus": {
-        "enum": [0, 1, 3, -1],
+        "enum": [
+          0,
+          1,
+          3,
+          -1
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -3653,7 +3841,14 @@
         "additionalProperties": false
       },
       "HlidacStatu.DS.Api.OcrWork+TaskPriority": {
-        "enum": [0, 5, 10, 20, 100, 999],
+        "enum": [
+          0,
+          5,
+          10,
+          20,
+          100,
+          999
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -3800,7 +3995,13 @@
         "additionalProperties": false
       },
       "HlidacStatu.DS.Api.Voice2Text.Task+CheckState": {
-        "enum": [0, 1, 2, 100, -1],
+        "enum": [
+          0,
+          1,
+          2,
+          100,
+          -1
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -3865,7 +4066,9 @@
           },
           "orderList": {
             "type": "array",
-            "items": {},
+            "items": {
+              "type": "string"
+            },
             "nullable": true
           }
         },
@@ -3930,28 +4133,28 @@
           "activeTasks": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Int64, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+              "$ref": "#/components/schemas/HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Int64, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
             },
             "nullable": true
           },
           "avgTaskLegth": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+              "$ref": "#/components/schemas/HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Decimal, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
             },
             "nullable": true
           },
           "longestTasks": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+              "$ref": "#/components/schemas/HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Decimal, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
             },
             "nullable": true
           }
         },
         "additionalProperties": false
       },
-      "HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
+      "HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Decimal, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
         "type": "object",
         "properties": {
           "email": {
@@ -3965,7 +4168,7 @@
         },
         "additionalProperties": false
       },
-      "HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Int64, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
+      "HlidacStatu.Entities.BlurredPageAPIStatistics+perItemStat`1[[System.Int64, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
         "type": "object",
         "properties": {
           "email": {
@@ -3980,7 +4183,14 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.DataQualityEnum": {
-        "enum": [0, 1, 2, 3, 4, 5],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -4211,7 +4421,13 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.Dotace+Hint+Type": {
-        "enum": [0, 1, 2, 3, 4],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -4549,7 +4765,14 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.Issues.ImportanceLevel": {
-        "enum": [0, 1, 5, 20, 100, -1],
+        "enum": [
+          0,
+          1,
+          5,
+          20,
+          100,
+          -1
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -4632,7 +4855,15 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.OsobaEvent+SocialNetwork": {
-        "enum": [0, 1, 2, 3, 4, 5, 6],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -4783,7 +5014,12 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.Smlouva+PravniRamce": {
-        "enum": [0, 1, 2, 3],
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -4956,7 +5192,11 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.Sponzoring+TypDaru": {
-        "enum": [0, 1, 2],
+        "enum": [
+          0,
+          1,
+          2
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -5018,7 +5258,15 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.UptimeServer": {
-        "required": ["created", "description", "id", "intervalInSec", "name", "priorita", "publicUrl"],
+        "required": [
+          "created",
+          "description",
+          "id",
+          "intervalInSec",
+          "name",
+          "priorita",
+          "publicUrl"
+        ],
         "type": "object",
         "properties": {
           "id": {
@@ -5189,13 +5437,13 @@
             "format": "date-time"
           },
           "durationTotal": {
-            "$ref": "#/components/schemas/HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.TimeSpan, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+            "$ref": "#/components/schemas/HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.TimeSpan, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
           },
           "longestDuration": {
-            "$ref": "#/components/schemas/HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.TimeSpan, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+            "$ref": "#/components/schemas/HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.TimeSpan, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
           },
           "percentOfTime": {
-            "$ref": "#/components/schemas/HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
+            "$ref": "#/components/schemas/HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.Decimal, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]"
           }
         },
         "additionalProperties": false
@@ -5216,7 +5464,7 @@
         },
         "additionalProperties": false
       },
-      "HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.Decimal, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
+      "HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.Decimal, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
         "type": "object",
         "properties": {
           "ok": {
@@ -5238,7 +5486,7 @@
         },
         "additionalProperties": false
       },
-      "HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.TimeSpan, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
+      "HlidacStatu.Entities.UptimeServer+MeasureStatus`1[[System.TimeSpan, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
         "type": "object",
         "properties": {
           "ok": {
@@ -5643,7 +5891,14 @@
         "additionalProperties": false
       },
       "HlidacStatu.Entities.VZ.VerejnaZakazka+StavyZakazky": {
-        "enum": [0, 1, 50, 100, 200, 300],
+        "enum": [
+          0,
+          1,
+          50,
+          100,
+          200,
+          300
+        ],
         "type": "integer",
         "format": "int32"
       },
@@ -5746,6 +6001,36 @@
       "HlidacStatu.Entities.XSD.tSmlouvaCiziMena": {
         "type": "object",
         "additionalProperties": false
+      },
+      "HlidacStatuApi.Models.CpvSkupinaDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Číselný identifikátor skupiny (hodnota pro parametr oblast).",
+            "format": "int32"
+          },
+          "kod": {
+            "type": "string",
+            "description": "Textový kód skupiny (lze použít jako hodnotu parametru oblast, např. \"IT\").",
+            "nullable": true
+          },
+          "nazev": {
+            "type": "string",
+            "description": "Lidsky čitelný název skupiny.",
+            "nullable": true
+          },
+          "cpvPrefixy": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Prefixy CPV kódů, na které se skupina rozbalí při vyhledávání.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Položka číselníku oblastí veřejných zakázek (skupiny CPV kódů)."
       },
       "HlidacStatuApi.Models.DSCreatedDTO": {
         "type": "object",
@@ -6134,7 +6419,7 @@
         },
         "additionalProperties": false
       },
-      "HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
+      "HlidacStatuApi.Models.SearchResultDTO`1[[System.Object, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]": {
         "type": "object",
         "properties": {
           "total": {
@@ -6181,5 +6466,49 @@
         "in": "header"
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "ApiV2"
+    },
+    {
+      "name": "ApiV2AITask"
+    },
+    {
+      "name": "ApiV2Datasety"
+    },
+    {
+      "name": "ApiV2Dotace"
+    },
+    {
+      "name": "ApiV2Firmy"
+    },
+    {
+      "name": "ApiV2Insolvence"
+    },
+    {
+      "name": "ApiV2OCR"
+    },
+    {
+      "name": "ApiV2Osoby"
+    },
+    {
+      "name": "ApiV2Smlouvy"
+    },
+    {
+      "name": "ApiV2Sponzoring"
+    },
+    {
+      "name": "ApiV2TablesInDoc"
+    },
+    {
+      "name": "ApiV2Voice2Text"
+    },
+    {
+      "name": "ApiV2VZ"
+    },
+    {
+      "name": "ApiV2Weby"
+    }
+  ]
 }
