@@ -2,15 +2,15 @@
 
 `hs` — a CLI wrapper for the [Hlídač státu](https://www.hlidacstatu.cz) REST API v2. Query Czech public-contracts data, company registries, subsidies, insolvencies, and people registries from the shell and pipe into `jq`.
 
-Pure passthrough: no filtering, no projection, no interpretation. What the API returns is what you get. Subcommands are generated from the official OpenAPI spec, so `hs --help` stays in sync with the server.
+Pure passthrough: no filtering, no projection, no interpretation. What the API returns is what you get. Subcommands are generated from an embedded copy of the official OpenAPI spec; weekly automation detects upstream drift.
 
 ## install
 
 ```bash
-# via npm (published bundle — runs on node ≥18)
+# via npm (published bundle — runs on node ≥22.12)
 npm install -g @jhostalek/hlidac-statu-cli
 
-# or from source (bun ≥1.1)
+# or from source (bun ≥1.3.14)
 git clone https://github.com/JHostalek/hlidac-statu-cli.git
 cd hlidac-statu-cli
 bun install
@@ -95,7 +95,7 @@ See [AGENTS.md](./AGENTS.md) for the full agent contract.
 
 ## coverage
 
-61 of 62 OpenAPI endpoints are auto-generated at build time. The one exception (`POST /datasety/{datasetId}/zaznamy` bulk insert) collides with the item-level POST and is reachable via `hs raw`.
+62 of 63 OpenAPI endpoints are auto-generated at build time. The one exception (`POST /datasety/{datasetId}/zaznamy` bulk insert) collides with the item-level POST and is reachable via `hs raw`.
 
 Commercial-licence-only endpoints (e.g. `/insolvence/*`, `/smlouvy/vsechnaID`) return 403 on free-tier tokens — the CLI surfaces them anyway; authorization is a server-side concern.
 
