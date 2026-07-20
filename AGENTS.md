@@ -129,5 +129,5 @@ Command names mirror the API: Czech (`smlouvy`=contracts, `firmy`=companies, `os
 
 - Default mode is byte-stable for `| jq` pipelines. `--json` is opt-in.
 - Param types in `--help` are wrapped in parens: `(integer, required, default 1, enum: 0|1|2)`.
-- Path-param leaves are named after the HTTP method (`smlouvy get <id>`, `datasety delete <id>`), so a path-only group like `smlouvy` always lists its sub-actions under `--help`.
+- Path-param leaves are named after the HTTP method (`smlouvy get <id>`, `datasety delete <id>`). When routes would collide, the shortest keeps that leaf and longer variants add their extra path parameters (`datasety zaznamy post-by-item-id`).
 - If `hs schema` collides with a future `/schema` endpoint, fall back to `hs raw GET /schema`.
