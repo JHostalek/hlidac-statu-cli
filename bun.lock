@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@jhostalek/hlidac-statu-cli",
+      "name": "hlidac-statu-cli",
       "dependencies": {
         "@effect/cli": "^0.76.0",
         "@effect/platform": "^0.97.0",

@@ -1,12 +1,28 @@
-import { afterAll, describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import packageJson from '../package.json' with { type: 'json' };
 import { type CommandPlan, type JsonSchema, type OpenApiSpec, planCommands } from './generator.js';
 import spec from './openapi.json' with { type: 'json' };
 
-const cliPath = new URL('./cli.ts', import.meta.url).pathname;
+const repositoryPath = new URL('..', import.meta.url).pathname;
 const cleanCwd = mkdtempSync(join(tmpdir(), 'hs-cli-test-'));
+const cliPath = join(cleanCwd, 'hs');
+
+beforeAll(async () => {
+  const build = Bun.spawn([Bun.which('bun') ?? 'bun', 'build', 'src/cli.ts', '--compile', '--outfile', cliPath], {
+    cwd: repositoryPath,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [exitCode, stdout, stderr] = await Promise.all([
+    build.exited,
+    new Response(build.stdout).text(),
+    new Response(build.stderr).text(),
+  ]);
+  if (exitCode !== 0) throw new Error(`failed to compile test executable\n${stdout}${stderr}`);
+});
 
 afterAll(() => rmSync(cleanCwd, { recursive: true }));
 
@@ -18,7 +34,7 @@ interface CliResult {
 
 function spawnCli(args: string[], env: Record<string, string> = {}) {
   const { HLIDAC_STATU_API_TOKEN: _token, HLIDAC_STATU_BASE_URL: _baseUrl, ...cleanEnv } = process.env;
-  return Bun.spawn([Bun.which('bun') ?? 'bun', cliPath, ...args], {
+  return Bun.spawn([cliPath, ...args], {
     cwd: cleanCwd,
     env: { ...cleanEnv, ...env },
     stdout: 'pipe',
@@ -67,6 +83,23 @@ function dryRunArgs(plan: CommandPlan): { args: string[]; expectedPath: string }
 }
 
 describe('Effect CLI command surface', () => {
+  test('publishes the full and filtered command contract from the compiled executable', async () => {
+    const [full, filtered] = await Promise.all([
+      runCli(['schema']),
+      runCli(['schema', 'datasety', 'zaznamy', 'post-by-item-id']),
+    ]);
+
+    expect([full.exitCode, full.stderr, filtered.exitCode, filtered.stderr]).toEqual([0, '', 0, '']);
+    const fullDocument = JSON.parse(full.stdout);
+    const filteredDocument = JSON.parse(filtered.stdout);
+    expect(fullDocument).toMatchObject({ schemaVersion: 1, cliVersion: packageJson.version });
+    expect(fullDocument.commands).toHaveLength(63);
+    expect(filteredDocument).toMatchObject({ schemaVersion: 1, cliVersion: packageJson.version });
+    expect(filteredDocument.commands.map((command: { path: string[] }) => command.path)).toEqual([
+      ['datasety', 'zaznamy', 'post-by-item-id'],
+    ]);
+  });
+
   test('every planned OpenAPI operation is executable from its schema path', async () => {
     const plans = planCommands(spec as OpenApiSpec).filter((plan) => plan.registration === 'generated');
 
@@ -353,8 +386,43 @@ describe('Effect CLI command surface', () => {
     expect(combinedHelp.stdout).not.toContain('datasety datasety');
     expect(groupHelp.stdout).toContain('hledat');
     expect(leafHelp.stdout).toContain('--dotaz');
-    expect(version.stdout.trim()).toBe('0.2.0');
+    expect(version.stdout.trim()).toBe(packageJson.version);
     expect(completions.stdout).toContain('#compdef hs');
+  });
+
+  test('keeps machine output deterministic and diagnostics sanitized in terminal-like environments', async () => {
+    const marker = 'secret-token-must-not-leak';
+    const server = Bun.serve({ port: 0, fetch: () => Response.json({ reason: 'expected' }, { status: 503 }) });
+    try {
+      const [plain, colorful, failure] = await Promise.all([
+        runCli(['--dry-run', 'smlouvy', 'hledat'], { HLIDAC_STATU_API_TOKEN: marker, TERM: 'dumb' }),
+        runCli(['--dry-run', 'smlouvy', 'hledat'], {
+          HLIDAC_STATU_API_TOKEN: marker,
+          TERM: 'xterm-256color',
+          FORCE_COLOR: '1',
+        }),
+        runCli(['raw', 'GET', '/failure'], {
+          HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}/api/v2`,
+          TERM: 'xterm-256color',
+          FORCE_COLOR: '1',
+        }),
+      ]);
+
+      expect(plain).toEqual(colorful);
+      expect({ exitCode: failure.exitCode, body: JSON.parse(failure.stdout), stderr: failure.stderr }).toEqual({
+        exitCode: 1,
+        body: { reason: 'expected' },
+        stderr: 'HTTP 503\n',
+      });
+      const combined = `${plain.stdout}${plain.stderr}${failure.stdout}${failure.stderr}`;
+      expect(combined).not.toContain(marker);
+      expect(combined).not.toContain('Authorization');
+      expect(combined).not.toContain('\u001b[');
+      expect(combined).not.toContain('FiberFailure');
+      expect(combined).not.toMatch(/\n\s+at\s/);
+    } finally {
+      server.stop(true);
+    }
   });
 
   test('executes a generated live request through the single application runner', async () => {
