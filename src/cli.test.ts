@@ -425,6 +425,34 @@ describe('Effect CLI command surface', () => {
     }
   });
 
+  test('drains large piped responses before exiting on both success and HTTP failure', async () => {
+    const value = 'x'.repeat(1024 * 1024);
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const status = new URL(request.url).pathname.endsWith('/failure') ? 503 : 200;
+        return Response.json({ value }, { status });
+      },
+    });
+    try {
+      const environment = { HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}/api/v2` };
+      const [success, failure] = await Promise.all([
+        runCli(['raw', 'GET', '/success'], environment),
+        runCli(['raw', 'GET', '/failure'], environment),
+      ]);
+
+      expect([success.exitCode, failure.exitCode]).toEqual([0, 1]);
+      expect([success.stdout.endsWith('\n'), failure.stdout.endsWith('\n')]).toEqual([true, true]);
+      expect([JSON.parse(success.stdout).value.length, JSON.parse(failure.stdout).value.length]).toEqual([
+        value.length,
+        value.length,
+      ]);
+      expect([success.stderr, failure.stderr]).toEqual(['', 'HTTP 503\n']);
+    } finally {
+      server.stop(true);
+    }
+  });
+
   test('executes a generated live request through the single application runner', async () => {
     let receivedUrl = '';
     const server = Bun.serve({

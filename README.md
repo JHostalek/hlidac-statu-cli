@@ -103,6 +103,19 @@ hs raw POST /datasety -d '{"hello":"world"}'
 hs --json raw GET /firmy/ico/00000205
 ```
 
+Query params as `key=value` positional args; body via `-d <json>`.
+
+## Codex skill
+
+`skills/hlidac-statu` teaches Codex how to translate English research intents into `hs` commands, follow identifiers across data domains, and avoid infrastructure endpoints. From a source checkout, install it into your personal Codex skills directory:
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/hlidac-statu "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+Tagged releases also attach `hlidac-statu-skill.tar.gz` for standalone installation.
+
 ## exit codes
 
 | code | meaning |
@@ -124,10 +137,6 @@ Commercial-licence-only endpoints may return 403 with free-tier tokens. The CLI 
 ## data licence
 
 Data retrieved through this tool is published by Hlídač státu under [CC BY 3.0 CZ](https://www.hlidacstatu.cz/texty/licence/). Published derivatives must attribute Hlídač státu and link to https://www.hlidacstatu.cz.
-
-## related
-
-- [`hlidac-statu-mcp`](https://github.com/JHostalek/hlidac-statu-mcp) — MCP server variant
 
 ## licence
 

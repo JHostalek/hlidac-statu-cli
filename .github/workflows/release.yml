@@ -67,12 +67,16 @@ jobs:
           test "$(uname -m)" = "arm64"
           bun run release:package
           bun run release:verify
+          tar -czf dist/hlidac-statu-skill.tar.gz -C skills hlidac-statu
+          (cd dist && shasum -a 256 hlidac-statu-skill.tar.gz > hlidac-statu-skill.tar.gz.sha256)
 
       - name: Attest release archive
         if: steps.release.outputs.publish == 'true'
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
-          subject-path: dist/${{ steps.release.outputs.artifact }}
+          subject-path: |
+            dist/${{ steps.release.outputs.artifact }}
+            dist/hlidac-statu-skill.tar.gz
 
       - name: Create and push tag
         if: steps.release.outputs.publish == 'true' && steps.release.outputs.create_tag == 'true'
@@ -90,6 +94,8 @@ jobs:
           gh release create "$TAG" \
             "dist/$ARTIFACT" \
             "dist/$ARTIFACT.sha256" \
+            "dist/hlidac-statu-skill.tar.gz" \
+            "dist/hlidac-statu-skill.tar.gz.sha256" \
             --verify-tag \
             --generate-notes \
             --title "$TAG"

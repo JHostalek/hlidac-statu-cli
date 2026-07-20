@@ -108,16 +108,7 @@ function responseResult(
   if (method === 'HEAD' || response.status === 204 || response.status === 205 || response.status === 304) {
     return Effect.succeed({ _tag: 'TextResult', ...base, text: '' });
   }
-  if (!isTextual(contentType)) {
-    return Effect.succeed({
-      _tag: 'BinaryResult' as const,
-      ...base,
-      stream: response.stream.pipe(Stream.mapError(() => transportFailure(method, url))),
-      timeoutMs,
-      deadlineNanos,
-    });
-  }
-  return response.text.pipe(
+  const decodeText = response.text.pipe(
     Effect.map((text): JsonResult | TextResult => {
       if (text.length === 0) return { _tag: 'TextResult', ...base, text };
       try {
@@ -128,6 +119,18 @@ function responseResult(
       }
     }),
   );
+  // IIS can omit Content-Type on textual HTTP errors, notably rate limits.
+  if (response.status >= 400 && contentType.trim() === '') return decodeText;
+  if (!isTextual(contentType)) {
+    return Effect.succeed({
+      _tag: 'BinaryResult' as const,
+      ...base,
+      stream: response.stream.pipe(Stream.mapError(() => transportFailure(method, url))),
+      timeoutMs,
+      deadlineNanos,
+    });
+  }
+  return decodeText;
 }
 
 function liveClient(httpClient: HttpClient.HttpClient): HlidacClientService {

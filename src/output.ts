@@ -245,10 +245,16 @@ export class CliExit {
 }
 
 function emitConsole(outcome: CliOutcome): Effect.Effect<void, CliExit> {
-  return Effect.sync(() => {
-    if (outcome.stdout.length > 0) process.stdout.write(`${outcome.stdout}\n`);
-    if (outcome.stderr) process.stderr.write(`${outcome.stderr}\n`);
-  }).pipe(Effect.flatMap(() => (outcome.exitCode === 0 ? Effect.void : Effect.fail(new CliExit(outcome.exitCode)))));
+  const write = (stream: NodeJS.WriteStream, text: string | undefined) =>
+    text
+      ? Effect.async<void>((resume) => {
+          stream.write(`${text}\n`, () => resume(Effect.void));
+        })
+      : Effect.void;
+  return write(process.stdout, outcome.stdout).pipe(
+    Effect.zipRight(write(process.stderr, outcome.stderr)),
+    Effect.zipRight(outcome.exitCode === 0 ? Effect.void : Effect.fail(new CliExit(outcome.exitCode))),
+  );
 }
 
 function emissionFailureOutcome(failure: CliFailure, original: CliOutcome): CliOutcome {

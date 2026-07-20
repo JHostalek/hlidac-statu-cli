@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { type AddressInfo, createServer } from 'node:net';
 import * as FetchHttpClient from '@effect/platform/FetchHttpClient';
 import { ConfigProvider, Effect, Layer, Stream } from 'effect';
 import { DEFAULT_TIMEOUT_MS, HlidacClientLive, type HlidacResult, hlidacRequest } from './api.js';
@@ -281,6 +282,27 @@ describe('HlidacClientLive', () => {
       expect(JSON.stringify([timeout, transport])).not.toContain('cause');
     } finally {
       delayed.stop(true);
+    }
+  });
+
+  test('missing Content-Type on HTTP error preserves the textual error', async () => {
+    const message = 'Překročen maximální počet API requestů.';
+    const server = createServer((socket) => {
+      socket.once('data', () => {
+        socket.end(
+          `HTTP/1.1 429 Too Many Requests\r\nContent-Length: ${Buffer.byteLength(message)}\r\nConnection: close\r\n\r\n${message}`,
+        );
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const result = await runRequest(['GET', '/firmy/ico/24738123'], {
+        HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${port}`,
+      });
+      expect(result).toMatchObject({ _tag: 'TextResult', status: 429, contentType: '', text: message });
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }
   });
 });
