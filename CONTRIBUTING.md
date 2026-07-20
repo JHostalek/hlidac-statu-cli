@@ -61,13 +61,14 @@ No test requires the production API or a real token.
 
 ## releases
 
-`package.json` is the release version source. A version change on `main` builds, verifies and publishes the sole supported `hs-macos-arm64-v<version>.tar.gz` archive plus its checksum and provenance attestation. Only after those assets exist does the workflow dispatch `update-formula.yml` in `JHostalek/homebrew-tap`.
+`package.json` is the release version source. A version change on `main` builds, verifies and publishes the sole supported `hs-macos-arm64-v<version>.tar.gz` archive plus its checksum and provenance attestation. It then dispatches the existing `update-formula.yml` workflow in `JHostalek/homebrew-tap`, matching the `junior` and `terna` release flow.
 
 The first release has a strict merge order:
 
-1. Merge the tap branch containing both the bootstrap `Formula/hs.rb` and its updater workflow.
+1. Merge the tap branch containing the bootstrap `Formula/hs.rb`.
 2. Configure `TAP_GITHUB_TOKEN` in this repository with only Actions write access to `JHostalek/homebrew-tap`.
-3. Merge the source release branch. The v0.3 release then populates the placeholder formula and proves `brew install` plus `brew test` before the tap update is committed.
+3. Merge the source release branch. The v0.3 release populates the placeholder formula through the existing updater.
+4. Run `brew update`, `brew install JHostalek/tap/hs`, and `brew test JHostalek/tap/hs` once to witness the first installation.
 
 Do not merge the placeholder formula alone as a steady state, and do not trigger the source release until the tap formula exists on `main`.
 
