@@ -92,11 +92,13 @@ export function formatEnvelope(result: HlidacResult, options: EnvelopeOptions = 
   return { stdout, exitCode };
 }
 
-export function emitOutcome(outcome: CliOutcome): never {
+export function emitOutcome(outcome: CliOutcome): void {
   if (outcome.file) {
     writeFileSync(outcome.file.path, outcome.file.bytes);
   }
   if (outcome.stdout.length > 0) process.stdout.write(`${outcome.stdout}\n`);
   if (outcome.stderr) process.stderr.write(`${outcome.stderr}\n`);
-  process.exit(outcome.exitCode);
+  // Let Node/Bun drain piped stdout and stderr before the process exits. Calling
+  // process.exit() here truncates sufficiently large JSON responses.
+  process.exitCode = outcome.exitCode;
 }

@@ -44,7 +44,7 @@ export function registerRaw(program: Command): void {
         try {
           body = JSON.parse(opts.data);
         } catch (err) {
-          emitOutcome({
+          return emitOutcome({
             stdout: '',
             stderr: `invalid --data JSON: ${err instanceof Error ? err.message : String(err)}`,
             exitCode: 2,
@@ -52,7 +52,7 @@ export function registerRaw(program: Command): void {
         }
       }
       const globals = cmd.optsWithGlobals();
-      emitOutcome(
+      return emitOutcome(
         await handleRaw(method, path, params, body, {
           json: globals.json === true,
           dryRun: globals.dryRun === true,
