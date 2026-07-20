@@ -2,44 +2,76 @@
 
 ## setup
 
-Requires Node.js ≥22.12 and Bun 1.3.14. The recommended Node.js line is recorded in `.nvmrc`; the Bun version is recorded in `.bun-version` and `packageManager`.
+Development uses Bun 1.3.14, recorded in `.bun-version` and `packageManager`:
 
 ```bash
-git clone https://github.com/JHostalek/hlidac-statu-cli.git && cd hlidac-statu-cli
-bun install
-lefthook install
+git clone https://github.com/JHostalek/hlidac-statu-cli.git
+cd hlidac-statu-cli
+bun ci
+bunx lefthook install
 ```
 
 ## workflow
 
 ```bash
-bun run check        # typecheck + lint
-bun run test         # run tests
-bun run build        # compile standalone binary (dist/hs)
-bun run dev          # watch mode for local experiments
-bun run openapi:check # compare the embedded API contract with the live specification
+bun run openapi:validate # validate all embedded operations
+bun run check            # typecheck + lint
+bun run test             # includes compiled-CLI contract tests
+bun run build            # compile dist/hs
+bun run dev              # source watch mode for local experiments
 ```
 
-for manual smoke tests, export `HLIDAC_STATU_API_TOKEN` (get one at https://www.hlidacstatu.cz/api) and run `./dist/hs smlouvy hledat --dotaz "ico:00000000"`.
+For a live smoke test, export `HLIDAC_STATU_API_TOKEN` and run `./dist/hs smlouvy hledat --dotaz 'ico:00000000'`. Prefer `./dist/hs --dry-run ...` when network access is unnecessary.
 
-## conventions
+## CLI contract
 
-- strict TypeScript, ESM, explicit `.js` extensions on imports
-- same-directory imports use `./`; no path aliases
-- all HTTP requests go through `hlidacRequest()` in `src/api.ts` — never call `fetch()` directly from command handlers
-- commands live under `src/commands/` (hand-written) or are auto-generated from `src/openapi.json` via `src/generator.ts`
-- refresh `src/openapi.json` with `bun run openapi:sync`; never edit the generated specification by hand
-- the generator is a pure passthrough — no projection, filtering, or interpretation of response bodies
-- output contract: JSON body → stdout; `HTTP <status>` → stderr on ≥400; exit 0 on success, 1 on HTTP error, 2 on CLI misuse
-- commits follow [conventional commits](https://www.conventionalcommits.org) (enforced via commitlint)
+Verify changes through the same discovery and output surface consumers use:
 
-## submitting changes
+```bash
+./dist/hs schema | jq '.commands | length'
+./dist/hs --dry-run smlouvy hledat --dotaz x | jq '.request'
+./dist/hs --json smlouvy hledat --dotaz x | jq '{ok,status,error}'
+```
 
-1. fork and branch from `main`
-2. follow the conventions above
-3. `bun run check && bun run test && bun run build` — all green
-4. open a PR with a clear description of what and why
+Global options precede the command path. Exit 0 means success or dry-run, exit 1 means an operational or HTTP failure, and exit 2 means invalid input or missing configuration. Keep stdout for results, stderr for plain diagnostics, and successful file output silent.
+
+## architecture and conventions
+
+- Strict TypeScript and ESM; explicit `.js` extensions on local imports.
+- `src/generator.ts` plans the complete command tree from `src/openapi.json` without side effects.
+- `src/cli-app.ts` maps that plan to Effect CLI. Keep one Effect runtime at `src/cli.ts`.
+- `src/api.ts` owns Hlídač API request policy through Effect's HTTP client. Command handlers do not call `fetch` directly.
+- `src/output.ts` owns rendering, streaming, and atomic filesystem publication.
+- Expected runtime failures use the stable codes in `src/errors.ts`; rendering and exit mapping stay centralized.
+- Do not add separate human/agent modes. Deterministic schema discovery, structured output, silence, and safe dry-run serve both.
+- OpenAPI maintenance remains plain Bun: use `bun run openapi:sync`, and never edit `src/openapi.json` manually.
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org).
+
+## proof before a pull request
+
+```bash
+bun ci
+bun run openapi:validate
+bun run check
+bun run test:coverage
+bun run build
+```
+
+No test requires the production API or a real token.
+
+## releases
+
+`package.json` is the release version source. A version change on `main` builds, verifies and publishes the sole supported `hs-macos-arm64-v<version>.tar.gz` archive plus its checksum and provenance attestation. It then dispatches the existing `update-formula.yml` workflow in `JHostalek/homebrew-tap`, matching the `junior` and `terna` release flow.
+
+The first release has a strict merge order:
+
+1. Merge the tap branch containing the bootstrap `Formula/hs.rb`.
+2. Configure `TAP_GITHUB_TOKEN` in this repository with only Actions write access to `JHostalek/homebrew-tap`.
+3. Merge the source release branch. The v0.3 release populates the placeholder formula through the existing updater.
+4. Run `brew update`, `brew install JHostalek/tap/hs`, and `brew test JHostalek/tap/hs` once to witness the first installation.
+
+Do not merge the placeholder formula alone as a steady state, and do not trigger the source release until the tap formula exists on `main`.
 
 ## reporting issues
 
-include: `hs --version`, bun version, node version, OS, the exact command you ran, redacted API response (no token), and steps to reproduce.
+Include `hs --version`, Bun version, macOS version and architecture, the exact command, a redacted response, and reproduction steps. Never include API tokens, authorization headers, or private endpoint credentials.

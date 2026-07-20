@@ -1,190 +1,320 @@
 import { describe, expect, test } from 'bun:test';
-import { spawnSync } from 'node:child_process';
-import type { HlidacResult } from './api.js';
-import { formatEnvelope, formatOutcome } from './output.js';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { BunContext } from '@effect/platform-bun';
+import { Deferred, Effect, Fiber, Stream } from 'effect';
+import type { BinaryResult, DryRunResult, JsonResult, TextResult } from './api.js';
+import { missingCredentials, transportFailure } from './errors.js';
+import { type CliFileOutput, formatEnvelope, formatFailure, formatOutcome, writeAtomically } from './output.js';
 
-const base = (over: Partial<HlidacResult>): HlidacResult => ({
+const base = (over: Partial<JsonResult>): JsonResult => ({
+  _tag: 'JsonResult',
   method: 'GET',
   url: 'https://api.hlidacstatu.cz/api/v2/x',
   status: 200,
   contentType: 'application/json',
-  body: undefined,
+  headers: {},
+  body: null,
   raw: '',
   ...over,
 });
 
-describe('formatOutcome', () => {
-  test('exit 0 with pretty-printed JSON body on 2xx', () => {
-    const outcome = formatOutcome(base({ status: 200, body: { ok: true }, raw: '{"ok":true}' }));
-    expect(outcome.exitCode).toBe(0);
-    expect(outcome.stderr).toBeUndefined();
-    expect(outcome.stdout).toBe('{\n  "ok": true\n}');
-    expect(outcome.file).toBeUndefined();
-  });
+const text = (value: string, over: Partial<TextResult> = {}): TextResult => ({
+  _tag: 'TextResult',
+  method: 'GET',
+  url: 'https://api.hlidacstatu.cz/api/v2/x',
+  status: 200,
+  contentType: 'text/plain',
+  headers: {},
+  text: value,
+  ...over,
+});
 
-  test('exit 1 with HTTP status on stderr for 4xx', () => {
-    const outcome = formatOutcome(
+const binary = (chunks: readonly Uint8Array[], over: Partial<BinaryResult> = {}): BinaryResult => ({
+  _tag: 'BinaryResult',
+  method: 'GET',
+  url: 'https://api.hlidacstatu.cz/api/v2/x',
+  status: 200,
+  contentType: 'application/zip',
+  headers: {},
+  stream: Stream.fromIterable(chunks),
+  timeoutMs: 30_000,
+  deadlineNanos: 9_000_000_000_000_000_000n,
+  ...over,
+});
+
+const dryRun = (over: Partial<DryRunResult> = {}): DryRunResult => ({
+  _tag: 'DryRunResult',
+  method: 'GET',
+  url: 'https://api.hlidacstatu.cz/api/v2/x',
+  status: 0,
+  contentType: '',
+  headers: {},
+  request: {
+    contentType: null,
+    body: null,
+    authentication: { required: true, scheme: 'Token <redacted>' },
+  },
+  ...over,
+});
+
+async function fileBytes(file: CliFileOutput | undefined): Promise<Uint8Array> {
+  if (!file) throw new Error('expected file output');
+  const values = await Effect.runPromise(
+    file.content.pipe(Stream.runFold([] as number[], (bytes, chunk) => [...bytes, ...chunk])),
+  );
+  return Uint8Array.from(values);
+}
+
+describe('formatOutcome', () => {
+  test('renders JSON and HTTP failures for stdout', () => {
+    const success = formatOutcome(base({ status: 200, body: { ok: true }, raw: '{"ok":true}' }));
+    expect(success).toMatchObject({ exitCode: 0, stdout: '{\n  "ok": true\n}' });
+    expect(success.stderr).toBeUndefined();
+
+    const failure = formatOutcome(
       base({ status: 403, body: { message: 'forbidden' }, raw: '{"message":"forbidden"}' }),
     );
-    expect(outcome.exitCode).toBe(1);
-    expect(outcome.stderr).toBe('HTTP 403');
-    expect(outcome.stdout).toContain('forbidden');
+    expect(failure).toMatchObject({ exitCode: 1, stderr: 'HTTP 403' });
+    expect(failure.stdout).toContain('forbidden');
   });
 
-  test('falls back to raw text when body is undefined', () => {
-    const outcome = formatOutcome(base({ status: 502, body: undefined, raw: '<html>Bad Gateway</html>' }));
-    expect(outcome.exitCode).toBe(1);
-    expect(outcome.stdout).toBe('<html>Bad Gateway</html>');
+  test('preserves non-JSON text', () => {
+    const outcome = formatOutcome(text('<html>Bad Gateway</html>', { status: 502, contentType: 'text/html' }));
+    expect(outcome).toMatchObject({ exitCode: 1, stdout: '<html>Bad Gateway</html>' });
   });
 
-  test('binary body without -o errors with content-type and byte count', () => {
-    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
-    const outcome = formatOutcome(base({ status: 200, contentType: 'application/zip', bytes }));
-    expect(outcome.exitCode).toBe(1);
-    expect(outcome.stdout).toBe('');
-    expect(outcome.stderr).toBe('binary response (application/zip, 4 bytes); use -o <path> to save');
-    expect(outcome.file).toBeUndefined();
-  });
-
-  test('binary body with -o routes bytes to file channel, exit 0', () => {
-    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff]);
-    const outcome = formatOutcome(base({ status: 200, contentType: 'application/zip', bytes }), {
-      output: '/tmp/out.zip',
+  test('binary without -o fails without consuming the stream', () => {
+    let consumed = false;
+    const result = binary([], {
+      stream: Stream.fromEffect(
+        Effect.sync(() => {
+          consumed = true;
+          return new Uint8Array([1]);
+        }),
+      ),
     });
-    expect(outcome.exitCode).toBe(0);
-    expect(outcome.stdout).toBe('');
-    expect(outcome.stderr).toBe('wrote 5 bytes to /tmp/out.zip (application/zip)');
-    expect(outcome.file?.path).toBe('/tmp/out.zip');
-    expect(outcome.file?.bytes).toBe(bytes);
+    const outcome = formatOutcome(result);
+    expect(outcome).toMatchObject({
+      exitCode: 1,
+      stdout: '',
+      stderr: 'binary response (application/zip); use -o <path> to save',
+    });
+    expect(outcome.file).toBeUndefined();
+    expect(consumed).toBe(false);
+    expect(formatOutcome({ ...result, status: 500 }).stderr).toBe(
+      'binary response (application/zip); use -o <path> to save',
+    );
   });
 
-  test('binary body with -o propagates 4xx status to exit code', () => {
-    const outcome = formatOutcome(
-      base({ status: 500, contentType: 'application/octet-stream', bytes: new Uint8Array([0]) }),
+  test('binary with -o routes the original stream silently and preserves HTTP failure status', async () => {
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff]);
+    const success = formatOutcome(binary([bytes]), { output: '/tmp/out.zip' });
+    expect(success).toMatchObject({ exitCode: 0, stdout: '', file: { path: '/tmp/out.zip' } });
+    expect(success.stderr).toBeUndefined();
+    expect(await fileBytes(success.file)).toEqual(bytes);
+
+    const failure = formatOutcome(
+      binary([new Uint8Array([0])], { status: 500, contentType: 'application/octet-stream' }),
       { output: '/tmp/err.bin' },
     );
-    expect(outcome.exitCode).toBe(1);
-    expect(outcome.file).toBeDefined();
+    expect(failure).toMatchObject({ exitCode: 1, stderr: 'HTTP 500' });
   });
 
-  test('binary body with missing content-type falls back to "unknown content-type"', () => {
-    const outcome = formatOutcome(base({ status: 200, contentType: '', bytes: new Uint8Array([0]) }));
-    expect(outcome.stderr).toContain('unknown content-type');
-  });
-
-  test('JSON body with -o writes pretty JSON to file, no stdout', () => {
+  test('text -o contains the exact stdout representation including newline and has no success chatter', async () => {
     const outcome = formatOutcome(base({ status: 200, body: { ok: true }, raw: '{"ok":true}' }), {
       output: '/tmp/out.json',
     });
-    expect(outcome.exitCode).toBe(0);
-    expect(outcome.stdout).toBe('');
-    expect(outcome.file?.path).toBe('/tmp/out.json');
-    const decoded = new TextDecoder().decode(outcome.file?.bytes);
-    expect(decoded).toBe('{\n  "ok": true\n}');
-    expect(outcome.stderr).toContain('wrote');
-    expect(outcome.stderr).toContain('/tmp/out.json');
-  });
-
-  test('JSON 4xx with -o keeps HTTP status stderr line AND reports file write', () => {
-    const outcome = formatOutcome(base({ status: 404, body: { error: 'nope' }, raw: '{"error":"nope"}' }), {
-      output: '/tmp/err.json',
-    });
-    expect(outcome.exitCode).toBe(1);
-    expect(outcome.stderr).toContain('HTTP 404');
-    expect(outcome.stderr).toContain('wrote');
-    expect(outcome.file).toBeDefined();
+    expect(outcome).toMatchObject({ exitCode: 0, stdout: '', file: { path: '/tmp/out.json' } });
+    expect(outcome.stderr).toBeUndefined();
+    expect(new TextDecoder().decode(await fileBytes(outcome.file))).toBe('{\n  "ok": true\n}\n');
   });
 });
 
 describe('formatEnvelope', () => {
-  test('200 wraps body in envelope with ok=true and exit 0', () => {
-    const outcome = formatEnvelope(base({ status: 200, body: { hits: 1 }, raw: '{"hits":1}' }));
-    expect(outcome.exitCode).toBe(0);
-    const parsed = JSON.parse(outcome.stdout);
-    expect(parsed).toEqual({
+  test('wraps success and HTTP failure bodies', async () => {
+    const success = await Effect.runPromise(
+      formatEnvelope(base({ status: 200, body: { hits: 1 }, raw: '{"hits":1}' })),
+    );
+    expect(JSON.parse(success.stdout)).toEqual({
       request: { method: 'GET', url: 'https://api.hlidacstatu.cz/api/v2/x' },
       status: 200,
       ok: true,
       body: { hits: 1 },
     });
-  });
 
-  test('404 sets ok=false, error field, exit 1', () => {
-    const outcome = formatEnvelope(base({ status: 404, body: { error: 'not found' }, raw: '{"error":"not found"}' }));
-    expect(outcome.exitCode).toBe(1);
-    const parsed = JSON.parse(outcome.stdout);
-    expect(parsed.ok).toBe(false);
-    expect(parsed.status).toBe(404);
-    expect(parsed.error).toEqual({ error: 'not found' });
-  });
-
-  test('dryRun forces ok=true, exit 0, dryRun:true marker', () => {
-    const outcome = formatEnvelope(
-      base({ method: 'GET', url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x', status: 0 }),
-      { dryRun: true },
+    const failure = await Effect.runPromise(
+      formatEnvelope(base({ status: 404, body: { error: 'not found' }, raw: '{"error":"not found"}' })),
     );
-    expect(outcome.exitCode).toBe(0);
-    const parsed = JSON.parse(outcome.stdout);
-    expect(parsed.dryRun).toBe(true);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.request.url).toContain('?dotaz=x');
-    expect(parsed.error).toBeUndefined();
-  });
-
-  test('missing body falls back to raw, then null', () => {
-    const withRaw = JSON.parse(formatEnvelope(base({ status: 200, raw: 'plaintext' })).stdout);
-    expect(withRaw.body).toBe('plaintext');
-    const empty = JSON.parse(formatEnvelope(base({ status: 200 })).stdout);
-    expect(empty.body).toBeNull();
-  });
-
-  test('binary response exposes contentType + bodyBytes, body null, no file', () => {
-    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff]);
-    const outcome = formatEnvelope(base({ status: 200, contentType: 'application/zip', bytes }));
-    expect(outcome.exitCode).toBe(0);
-    expect(outcome.file).toBeUndefined();
-    const parsed = JSON.parse(outcome.stdout);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.contentType).toBe('application/zip');
-    expect(parsed.bodyBytes).toBe(5);
-    expect(parsed.body).toBeNull();
-  });
-
-  test('-o routes envelope JSON to file, empty stdout, confirmation on stderr', () => {
-    const outcome = formatEnvelope(base({ status: 200, body: { hits: 1 }, raw: '{"hits":1}' }), {
-      output: '/tmp/env.json',
+    expect(JSON.parse(failure.stdout)).toMatchObject({
+      status: 404,
+      ok: false,
+      body: { error: 'not found' },
+      error: { code: 'HTTP_FAILURE', retryable: false, details: { method: 'GET', status: 404 } },
     });
-    expect(outcome.exitCode).toBe(0);
-    expect(outcome.stdout).toBe('');
-    expect(outcome.stderr).toBe(`wrote ${outcome.file?.bytes.byteLength} bytes to /tmp/env.json`);
-    expect(outcome.file?.path).toBe('/tmp/env.json');
-    const parsed = JSON.parse(new TextDecoder().decode(outcome.file?.bytes));
-    expect(parsed.body).toEqual({ hits: 1 });
   });
 
-  test('dryRun + -o writes envelope JSON to file', () => {
-    const outcome = formatEnvelope(
-      base({ status: 0, url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x' }),
-      { dryRun: true, output: '/tmp/dry.json' },
+  test('renders dry-run and empty response contracts', async () => {
+    const outcome = await Effect.runPromise(
+      formatEnvelope(dryRun({ url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x' }), {
+        dryRun: true,
+      }),
     );
-    expect(outcome.exitCode).toBe(0);
-    expect(outcome.file?.path).toBe('/tmp/dry.json');
-    const parsed = JSON.parse(new TextDecoder().decode(outcome.file?.bytes));
-    expect(parsed.dryRun).toBe(true);
-    expect(parsed.ok).toBe(true);
+    expect(JSON.parse(outcome.stdout)).toMatchObject({ dryRun: true, ok: true, body: null });
+    expect(JSON.parse(outcome.stdout).request.url).toContain('?dotaz=x');
+
+    const empty = await Effect.runPromise(formatEnvelope(text('')));
+    expect(JSON.parse(empty.stdout).body).toBeNull();
+  });
+
+  test('drains binary chunks and counts actual bytes without embedding them', async () => {
+    const outcome = await Effect.runPromise(
+      formatEnvelope(binary([new Uint8Array([0x50, 0x4b]), new Uint8Array([0x03, 0x04, 0xff])])),
+    );
+    const parsed = JSON.parse(outcome.stdout);
+    expect(parsed).toMatchObject({
+      ok: true,
+      contentType: 'application/zip',
+      bodyBytes: 5,
+      body: null,
+    });
+  });
+
+  test('-o routes the envelope representation silently instead of binary bytes', async () => {
+    const outcome = await Effect.runPromise(
+      formatEnvelope(binary([new Uint8Array([0x50, 0x4b])]), { output: '/tmp/env.json' }),
+    );
+    expect(outcome).toMatchObject({ exitCode: 0, stdout: '', file: { path: '/tmp/env.json' } });
+    expect(outcome.stderr).toBeUndefined();
+    const decoded = new TextDecoder().decode(await fileBytes(outcome.file));
+    expect(decoded.endsWith('\n')).toBe(true);
+    expect(JSON.parse(decoded)).toMatchObject({ bodyBytes: 2, body: null });
+  });
+
+  test('every buffered -o mode matches its selected stdout bytes exactly', async () => {
+    const json = base({ body: { ok: true }, raw: '{"ok":true}' });
+    const dry = dryRun();
+    const failure = missingCredentials('GET', 'https://api.hlidacstatu.cz/api/v2/x');
+    const request = failure.request ?? { method: '', url: '' };
+    const pairs = [
+      [formatOutcome(json), formatOutcome(json, { output: '/tmp/default.json' })],
+      [
+        await Effect.runPromise(formatEnvelope(json)),
+        await Effect.runPromise(formatEnvelope(json, { output: '/tmp/envelope.json' })),
+      ],
+      [
+        await Effect.runPromise(formatEnvelope(dry, { dryRun: true })),
+        await Effect.runPromise(formatEnvelope(dry, { dryRun: true, output: '/tmp/dry-run.json' })),
+      ],
+      [formatFailure(failure, request), formatFailure(failure, request, { output: '/tmp/failure.json' })],
+    ] as const;
+
+    for (const [stdout, file] of pairs) {
+      expect(file.stderr).toBeUndefined();
+      expect(new TextDecoder().decode(await fileBytes(file.file))).toBe(`${stdout.stdout}\n`);
+    }
   });
 });
 
-describe('emitOutcome', () => {
-  test('drains large piped stdout before exiting', () => {
-    const outputModule = new URL('./output.ts', import.meta.url).href;
-    const size = 256 * 1024;
-    const script = `import { emitOutcome } from ${JSON.stringify(outputModule)}; emitOutcome({ stdout: 'x'.repeat(${size}), exitCode: 0 });`;
-    const result = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' });
+describe('writeAtomically', () => {
+  test('keeps an existing destination visible until streaming completes, then replaces it and cleans temporary data', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'hs-output-'));
+    const destination = join(directory, 'result.bin');
+    writeFileSync(destination, 'original');
+    try {
+      await Effect.runPromise(
+        Effect.scoped(
+          Effect.gen(function* () {
+            const firstWritten = yield* Deferred.make<void>();
+            const release = yield* Deferred.make<void>();
+            const source = Stream.concat(
+              Stream.succeed(new Uint8Array([1, 2])),
+              Stream.fromEffect(
+                Deferred.succeed(firstWritten, undefined).pipe(
+                  Effect.zipRight(Deferred.await(release)),
+                  Effect.as(new Uint8Array([3, 4])),
+                ),
+              ),
+            );
+            const fiber = yield* Effect.fork(writeAtomically(destination, source));
+            yield* Deferred.await(firstWritten);
+            yield* Effect.sync(() => {
+              expect(readFileSync(destination, 'utf8')).toBe('original');
+              expect(readdirSync(directory, { recursive: true }).length).toBeGreaterThan(1);
+            });
+            yield* Deferred.succeed(release, undefined);
+            yield* Fiber.join(fiber);
+          }),
+        ).pipe(Effect.provide(BunContext.layer)),
+      );
 
-    expect(result.status).toBe(0);
-    expect(result.stderr).toBe('');
-    expect(result.stdout.length).toBe(size + 1);
-    expect(result.stdout.endsWith('\n')).toBe(true);
+      expect(Array.from(readFileSync(destination))).toEqual([1, 2, 3, 4]);
+      expect(readdirSync(directory)).toEqual(['result.bin']);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test('leaves the original destination untouched and cleans temporary data on stream failure', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'hs-output-'));
+    const destination = join(directory, 'result.bin');
+    writeFileSync(destination, 'original');
+    try {
+      const failure = await Effect.runPromise(
+        Effect.scoped(
+          writeAtomically(
+            destination,
+            Stream.concat(
+              Stream.succeed(new Uint8Array([1, 2])),
+              Stream.fail(transportFailure('GET', 'https://example.test/binary')),
+            ),
+          ).pipe(Effect.flip),
+        ).pipe(Effect.provide(BunContext.layer)),
+      );
+      expect(failure.code).toBe('TRANSPORT_FAILURE');
+      expect(readFileSync(destination, 'utf8')).toBe('original');
+      expect(readdirSync(directory)).toEqual(['result.bin']);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test('cleans temporary data on interruption and maps publication failures to OUTPUT_FAILURE', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'hs-output-'));
+    const destination = join(directory, 'result.bin');
+    writeFileSync(destination, 'original');
+    try {
+      await Effect.runPromise(
+        Effect.scoped(
+          Effect.gen(function* () {
+            const waiting = yield* Deferred.make<void>();
+            const source = Stream.concat(
+              Stream.succeed(new Uint8Array([1, 2])),
+              Stream.fromEffect(Deferred.succeed(waiting, undefined).pipe(Effect.zipRight(Effect.never))),
+            );
+            const fiber = yield* Effect.fork(writeAtomically(destination, source));
+            yield* Deferred.await(waiting);
+            yield* Fiber.interrupt(fiber);
+          }),
+        ).pipe(Effect.provide(BunContext.layer)),
+      );
+      expect(readFileSync(destination, 'utf8')).toBe('original');
+      expect(readdirSync(directory)).toEqual(['result.bin']);
+
+      const failure = await Effect.runPromise(
+        Effect.scoped(
+          writeAtomically(join(directory, 'missing', 'result.bin'), Stream.succeed(new Uint8Array([1]))).pipe(
+            Effect.flip,
+          ),
+        ).pipe(Effect.provide(BunContext.layer)),
+      );
+      expect(failure).toMatchObject({
+        code: 'OUTPUT_FAILURE',
+        details: { destination: join(directory, 'missing', 'result.bin') },
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });

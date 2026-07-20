@@ -24,10 +24,10 @@ Use dataset metadata `origUrl` and `sourcecodeUrl` for provenance when present. 
 
 Dataset creation, update, deletion, record upsert, and bulk insert are remote writes. Do not perform them merely because the user asked to “check” or “explore” a dataset. Use `--dry-run` to demonstrate request construction. Update cannot change `datasetId` or `jsonSchema`. Item-write modes such as `skip`, `merge`, and `rewrite` have different overwrite behavior; inspect help and obtain explicit authorization.
 
-The generated bulk-insert command collides with the item-level command and requires:
+The generated bulk-insert command is distinct from the item-level `post-by-item-id` command:
 
 ```bash
-hs raw POST '/datasety/<datasetId>/zaznamy' -d '[...]'
+hs datasety zaznamy post '<datasetId>' --data '[...]'
 ```
 
 ## Discover dumps
@@ -50,7 +50,7 @@ hs dumps | jq -r '[.[] | select(
 ## Download a dump
 
 ```bash
-hs dumpZip get '<datatype>' '<YYYY-MM-DD>' -o '<safe-path>.zip'
+hs -o '<safe-path>.zip' dumpZip get '<datatype>' '<YYYY-MM-DD>'
 ```
 
 `dumpZip` returns binary data and requires `-o`. Without it, `hs` refuses to put bytes on stdout. Do not use `--json` as a substitute for downloading: the JSON envelope reports metadata while leaving `body` null.
@@ -61,4 +61,4 @@ Avoid `dumpItems` unless the user explicitly needs its undated JSON export and a
 
 ## Choose search or bulk
 
-Use search when the request is narrow, interactive, or needs current server-side indexing. Use dumps when the task needs complete iteration, repeated local analysis, or a stable snapshot. API search pagination limits can make it unsuitable for exhaustive export. The CLI buffers binary downloads, so confirm memory/disk expectations for large full dumps.
+Use search when the request is narrow, interactive, or needs current server-side indexing. Use dumps when the task needs complete iteration, repeated local analysis, or a stable snapshot. API search pagination limits can make it unsuitable for exhaustive export. The CLI streams binary downloads to disk, so confirm disk expectations for large full dumps.

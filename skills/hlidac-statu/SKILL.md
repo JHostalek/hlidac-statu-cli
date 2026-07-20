@@ -28,7 +28,7 @@ Read only the references required for the current request.
 Do not recall flags from memory. Discover them in this order:
 
 ```bash
-hs schema | jq '.[] | select(.path[0] == "smlouvy")'
+hs schema | jq '.commands[] | select(.path[0] == "smlouvy")'
 hs smlouvy --help
 hs smlouvy hledat --help
 ```

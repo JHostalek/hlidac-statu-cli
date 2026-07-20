@@ -51,7 +51,7 @@ Envelope (`--json`) — wrap everything for programmatic consumption:
 ```bash
 hs --json smlouvy hledat --dotaz x
 # { "request": {"method":"GET","url":"..."}, "status":200, "ok":true, "body": ... }
-# on 4xx/5xx: ok=false, error=<body>, exit 1
+# on 4xx/5xx: ok=false, body=<server payload>, error={code,message,retryable,details}, exit 1
 ```
 
 Dry-run (`--dry-run`) — resolve URL + query, do not call the API. Forces envelope shape, always exit 0:
@@ -61,11 +61,17 @@ hs --dry-run smlouvy hledat --dotaz x
 # { "request": {...}, "status":0, "ok":true, "body":null, "dryRun":true }
 ```
 
-File output (`-o, --output <path>`) — write the response body to a file instead of stdout. Combines with any other mode; stderr gets a one-line `wrote N bytes to <path>` confirmation:
+Live requests time out after 30 seconds by default. Override with a positive explicit-unit duration (`ms`, `s`, or `m`) before the command path:
 
 ```bash
-hs smlouvy hledat --dotaz x -o results.json         # pretty JSON → file
-hs --json smlouvy hledat --dotaz x -o envelope.json # envelope → file
+hs --timeout 90s smlouvy hledat --dotaz x
+```
+
+File output (`-o, --output <path>`) — atomically write exactly the representation that stdout would otherwise receive. Successful writes are silent:
+
+```bash
+hs -o results.json smlouvy hledat --dotaz x         # pretty JSON → file
+hs --json -o envelope.json smlouvy hledat --dotaz x # envelope → file
 ```
 
 ## Binary responses
@@ -74,15 +80,15 @@ Non-JSON endpoints (e.g. `GET /dumpZip/{datatype}/{date}` returns `application/z
 
 ```
 $ hs dumpZip get smlouvy 2026-04-21
-binary response (application/zip, 25782 bytes); use -o <path> to save
+binary response (application/zip); use -o <path> to save
 # exit 1
 ```
 
 With `-o`, bytes land on disk unchanged:
 
 ```bash
-hs dumpZip get smlouvy 2026-04-21 -o smlouvy.zip
-# wrote 25782 bytes to smlouvy.zip (application/zip)
+hs -o smlouvy.zip dumpZip get smlouvy 2026-04-21
+# no stdout or stderr on success
 ```
 
 Under `--json`, the envelope for a binary response reports metadata only — `body` is `null`, and new fields `contentType` + `bodyBytes` describe what was returned:
@@ -96,7 +102,7 @@ To fetch the latest available dump for a datatype, resolve the date via `/dumps`
 
 ```bash
 DATE=$(hs dumps | jq -r 'map(select(.dataType == "smlouvy")) | max_by(.date) | .date[:10]')
-hs dumpZip get smlouvy "$DATE" -o "smlouvy-$DATE.zip"
+hs -o "smlouvy-$DATE.zip" dumpZip get smlouvy "$DATE"
 ```
 
 ## Exit codes
@@ -129,5 +135,5 @@ Command names mirror the API: Czech (`smlouvy`=contracts, `firmy`=companies, `os
 
 - Default mode is byte-stable for `| jq` pipelines. `--json` is opt-in.
 - Param types in `--help` are wrapped in parens: `(integer, required, default 1, enum: 0|1|2)`.
-- Path-param leaves are named after the HTTP method (`smlouvy get <id>`, `datasety delete <id>`), so a path-only group like `smlouvy` always lists its sub-actions under `--help`.
+- Path-param leaves are named after the HTTP method (`smlouvy get <id>`, `datasety delete <id>`). When routes would collide, the shortest keeps that leaf and longer variants add their extra path parameters (`datasety zaznamy post-by-item-id`).
 - If `hs schema` collides with a future `/schema` endpoint, fall back to `hs raw GET /schema`.

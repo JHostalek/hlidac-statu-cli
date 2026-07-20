@@ -1,120 +1,142 @@
 # hlidac-statu-cli
 
-`hs` — a CLI wrapper for the [Hlídač státu](https://www.hlidacstatu.cz) REST API v2. Query Czech public-contracts data, company registries, subsidies, insolvencies, and people registries from the shell and pipe into `jq`.
-
-Pure passthrough: no filtering, no projection, no interpretation. What the API returns is what you get. Subcommands are generated from an embedded copy of the official OpenAPI spec; weekly automation detects upstream drift.
+`hs` is a CLI wrapper for the [Hlídač státu](https://www.hlidacstatu.cz) REST API v2. It exposes all 63 operations from an embedded OpenAPI document and returns the API payload without projection or interpretation.
 
 ## install
 
-```bash
-# via npm (published bundle — runs on node ≥22.12)
-npm install -g @jhostalek/hlidac-statu-cli
+The supported distribution target is macOS on Apple Silicon:
 
-# or from source (bun ≥1.3.14)
-git clone https://github.com/JHostalek/hlidac-statu-cli.git
-cd hlidac-statu-cli
-bun install
-bun run build    # dist/hs standalone binary
+```bash
+brew install JHostalek/tap/hs
 ```
 
-## auth
+To build from source, install [Bun](https://bun.sh) 1.3.14:
 
-Get a token at https://www.hlidacstatu.cz/api and export it:
+```bash
+git clone https://github.com/JHostalek/hlidac-statu-cli.git
+cd hlidac-statu-cli
+bun ci
+bun run build
+./dist/hs --version
+```
+
+## discover commands
+
+Start with the machine-readable command contract. Each `path` is the literal argument sequence after `hs`:
+
+```bash
+hs schema | jq
+hs schema smlouvy | jq '.commands[] | {path, summary}'
+hs schema smlouvy hledat | jq '.commands[0]'
+
+hs --help
+hs smlouvy --help
+hs smlouvy hledat --help
+```
+
+Command names mirror the Czech API (`smlouvy` = contracts, `firmy` = companies, `osoby` = people, `dotace` = subsidies, `hledat` = search). The schema is the reliable mapping from an intent to an executable path.
+
+## authenticate
+
+Live API requests require a token from https://www.hlidacstatu.cz/api:
 
 ```bash
 export HLIDAC_STATU_API_TOKEN=<your-token>
 ```
 
-To route requests through an authenticating proxy instead (the proxy injects the token server-side), set `HLIDAC_STATU_BASE_URL`; the local token then becomes optional:
+An explicit `HLIDAC_STATU_BASE_URL` is intended for controlled endpoints and local tests; those requests may run without a token.
+
+## invoke
+
+Global options belong before the command path. Endpoint parameters follow it:
 
 ```bash
-export HLIDAC_STATU_BASE_URL=https://my-control-plane.example/api/hlidac
-```
-
-## usage
-
-```bash
-hs --help                                  # list top-level resources
-hs smlouvy --help                          # subcommands under /smlouvy
-hs smlouvy hledat --help                   # params for GET /smlouvy/hledat
-
 hs smlouvy hledat --dotaz 'ico:00000000' --strana 1
-hs smlouvy get 12345
-hs firmy ico get 00000205                  # GET /firmy/ico/{ico}
-hs firmy get 'ČEZ, a.s.'                   # GET /firmy/{jmenoFirmy}
-hs dotace hledat --dotaz 'obnovitelné' --razeni 3
-hs osoby get andrej-babis
-hs datasety                                # GET /datasety (list)
-hs datasety get sponzori-politickych-stran
+hs firmy ico get 00000205 | jq '.jmeno'
+hs --timeout 90s dotace hledat --dotaz 'obnovitelné'
 ```
 
-All responses are pretty-printed JSON to stdout. Pipe into `jq`, `grep`, or redirect to a file:
+Default mode writes the bare response body to stdout. JSON bodies are pretty-printed; text bodies remain text. HTTP failures preserve the server body on stdout and write `HTTP <status>` to stderr.
+
+Use `--json` for one stable envelope on parsed command success or failure:
 
 ```bash
-hs smlouvy hledat --dotaz 'predmet:uklid' --strana 1 | jq '.results | length'
-hs smlouvy get 12345 > contract.json
-hs firmy ico get 00000205 | jq -r '.jmeno, .adresa'
+hs --json smlouvy hledat --dotaz x
+# {"request":{...},"status":200,"ok":true,"body":...}
 ```
 
-Binary endpoints (e.g. daily contract dumps) need `-o <path>`; see [AGENTS.md](./AGENTS.md#binary-responses):
+The envelope exposes a public error `code` and conservative `retryable` value. Discover the closed code set with:
 
 ```bash
-hs dumpZip get smlouvy 2026-04-21 -o smlouvy-2026-04-21.zip
+hs schema | jq '.errorCodes'
 ```
 
-### escape hatch
+Use `--dry-run` to validate and fully encode a request without credentials or network access. It always emits the envelope shape:
 
-If a command you need isn't exposed as a subcommand (e.g. a spec collision, or a new endpoint we haven't pulled in), use `hs raw`:
+```bash
+hs --dry-run smlouvy hledat --dotaz 'česká energie' | jq '.request'
+hs --dry-run datasety zaznamy post set --data '{"Id":"1"}'
+```
+
+Write the selected stdout representation atomically with `-o`. Successful file output is silent:
+
+```bash
+hs -o results.json smlouvy hledat --dotaz x
+hs --json -o envelope.json smlouvy hledat --dotaz x
+```
+
+Binary responses require `-o` in default mode so bytes never reach the terminal accidentally:
+
+```bash
+hs -o smlouvy.zip dumpZip get smlouvy 2026-04-21
+```
+
+With `--json`, binary bytes are drained but not embedded; `body` is `null` and `contentType` plus `bodyBytes` describe the response.
+
+## raw requests
+
+`raw` is the escape hatch for an endpoint not yet present in the embedded specification:
 
 ```bash
 hs raw GET /smlouvy/hledat dotaz=elektřiny strana=1
-hs raw POST '/datasety/my-dataset/zaznamy' -d '[{"Id":"1","jmeno":"Ferda"}]'
+hs raw POST /datasety -d '{"hello":"world"}'
+hs --json raw GET /firmy/ico/00000205
 ```
 
 Query params as `key=value` positional args; body via `-d <json>`.
 
-## for agents
+## Codex skill
 
-Programmatic discovery and structured output:
-
-```bash
-hs schema | jq                                 # full command tree as JSON
-hs --json smlouvy hledat --dotaz x             # envelope: {request,status,ok,body,error?}
-hs --dry-run smlouvy hledat --dotaz x          # resolve URL, no API call (no token needed)
-```
-
-See [AGENTS.md](./AGENTS.md) for the full agent contract.
-
-### Codex skill
-
-The package includes `skills/hlidac-statu`, which teaches Codex how to translate English research intents into `hs` commands, follow identifiers across data domains, and avoid infrastructure endpoints.
-
-From a source checkout, install it into your personal Codex skills directory:
+`skills/hlidac-statu` teaches Codex how to translate English research intents into `hs` commands, follow identifiers across data domains, and avoid infrastructure endpoints. From a source checkout, install it into your personal Codex skills directory:
 
 ```bash
 mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
 cp -R skills/hlidac-statu "${CODEX_HOME:-$HOME/.codex}/skills/"
 ```
 
-The same folder is included in the npm package and as `hlidac-statu-skill.tar.gz` in binary releases.
+Tagged releases also attach `hlidac-statu-skill.tar.gz` for standalone installation.
 
 ## exit codes
 
-| code | meaning                                                            |
-|------|--------------------------------------------------------------------|
-| 0    | HTTP 2xx/3xx success or `--dry-run`                                |
-| 1    | HTTP ≥400 (body still on stdout) or generic local error            |
-| 2    | Config error (missing env var) or invalid `--data` JSON            |
+| code | meaning |
+|---:|---|
+| 0 | Success (HTTP 2xx/3xx) or dry-run |
+| 1 | HTTP, transport, timeout, binary-output, filesystem, or internal failure |
+| 2 | Invalid input or missing configuration |
 
-## coverage
+Parser errors use Effect CLI's standard text diagnostics. Successfully parsed `--json` commands return structured failures. Stdout contains results; stderr contains plain diagnostics only. There are no progress indicators, banners, success messages, or TTY-dependent output modes.
 
-62 of 63 OpenAPI endpoints are auto-generated at build time. The one exception (`POST /datasety/{datasetId}/zaznamy` bulk insert) collides with the item-level POST and is reachable via `hs raw`.
+See [AGENTS.md](./AGENTS.md) for the compact operational contract.
 
-Commercial-licence-only endpoints (e.g. `/insolvence/*`, `/smlouvy/vsechnaID`) return 403 on free-tier tokens — the CLI surfaces them anyway; authorization is a server-side concern.
+## OpenAPI coverage
+
+All 63 embedded OpenAPI operations have generated commands. Route collisions are resolved deterministically; for example, the item-specific dataset-record route is `datasety zaznamy post-by-item-id`.
+
+Commercial-licence-only endpoints may return 403 with free-tier tokens. The CLI still exposes them because authorization is server policy.
 
 ## data licence
 
-Data retrieved via this tool is published by Hlídač státu under [CC BY 3.0 CZ](https://www.hlidacstatu.cz/texty/licence/). Any derived output you publish must attribute Hlídač státu and link back to https://www.hlidacstatu.cz.
+Data retrieved through this tool is published by Hlídač státu under [CC BY 3.0 CZ](https://www.hlidacstatu.cz/texty/licence/). Published derivatives must attribute Hlídač státu and link to https://www.hlidacstatu.cz.
 
 ## licence
 
