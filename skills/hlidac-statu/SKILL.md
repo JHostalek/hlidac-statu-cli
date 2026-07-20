@@ -72,7 +72,9 @@ Use the API's search syntax exactly; do not translate field names inside `--dota
 
 Most searches use the 1-indexed `--strana` flag and do not page automatically. Loop explicitly and stop based on response metadata or an empty/thin result page. Search endpoints commonly return 25 records per page. Help may advertise page 250 while a live endpoint enforces 200; treat a 400 near the end as a server limit, not completion. Do not claim completeness from one page or beyond the server's accessible window.
 
-Keep request rate at or below four calls per second. On HTTP 429, back off rather than retrying immediately.
+Keep request rate at or below four calls per second. In shell loops, run sequentially and pause at least 300 ms after each API call; do not use parallel `xargs`. On HTTP 429, stop the loop and back off rather than retrying immediately.
+
+Budget requests before multi-domain or multi-agent investigations. Parallel agents share the same account quota: partition intended calls, avoid duplicate identity/detail lookups, and reserve capacity for verification. Prefer a sorted first page plus response `total` when the task asks for top records or existence rather than exhaustive export.
 
 ## Apply safety boundaries
 

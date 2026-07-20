@@ -10,7 +10,7 @@ hs firmy ico get 00000205
 hs firmy GetDetailInfo --help
 ```
 
-Use name lookup for discovery and IČO lookup for identity. Partial names can resolve, so verify the returned name and IČO rather than trusting the first match. Treat IČO as an eight-character string. A name match can represent a company, ministry, municipality, public organization, nonprofit, or another legal entity.
+Use name lookup for discovery and IČO lookup for identity. Partial or even exact names can resolve to the wrong same-name legal entity, so verify the returned legal name, IČO, data box, organization type when available, and fit with the target dataset rather than trusting the first match. State why a candidate was selected when more than one is plausible. Treat IČO as an eight-character string. A name match can represent a company, political party, ministry, municipality, public organization, nonprofit, association, or another legal entity.
 
 `firmy social` and `firmy GetDetailInfo` are specialized surfaces. Inspect leaf help before using them; do not assume they are ordinary single-company detail endpoints.
 
@@ -38,7 +38,9 @@ hs sponzoring get '<recipient-party-ico>'
 
 The path parameter is `icoPrijemce`: the recipient political party's IČO. This endpoint answers “who donated to this party?” It does not directly answer “which parties did this donor support?” Resolve the party through `firmy` when only its name is known, then filter the returned donation records for the donor when needed.
 
-The response is an unpaged donation array. Filter and aggregate locally by donor, date/year, value, or donation type. Enrich a person donor through `nameIdDarce → osoby get`; enrich a company donor through `icoDarce → firmy ico get`.
+The response is an unpaged donation array. Filter and aggregate locally by donor, date/year, value, or donation type. Enrich a person donor through `nameIdDarce → osoby get`; enrich an organization donor through `icoDarce → firmy ico get`.
+
+An `icoDarce` value proves only that the donor is an IČO-bearing legal entity; it does not prove the donor is a commercial company. Resolve and classify each candidate before answering “company donors.” Donation rows are individual gifts unless the user asks for totals per donor. State whether cash and valued in-kind gifts are combined, whether donors are aggregated, and how ties at the cutoff are handled.
 
 ## Cross-domain flow
 
@@ -61,6 +63,7 @@ Not every search domain provides a dedicated IČO flag. When using an IČO insid
 
 - Do not remove leading zeroes from IČO.
 - Do not merge entities from names alone.
+- A non-empty result from the intended downstream domain can help disambiguate candidates, but absence is not identity proof.
 - Historical names and organizational changes can split or merge records.
 - A person appearing in Hlídač státu is not itself evidence of wrongdoing.
 - Social-profile and sponsorship data may be incomplete or time-bounded.

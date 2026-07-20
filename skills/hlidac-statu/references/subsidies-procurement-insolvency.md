@@ -9,7 +9,7 @@ hs dotace hledat --dotaz '<query>' --strana 1
 hs dotace get '<subsidy-id>'
 ```
 
-The search uses the API's full-text syntax. Useful fields include `ico`, `jmeno`, `holding`, `osobaid`, `castka`, `projekt`, `program`, `kodProgramu`, `kodProjektu`, `typ`, and `oblast`.
+The search uses the API's full-text syntax. Useful fields include `ico`, `jmeno`, `holding`, `osobaid`, `castka`, `rok`, `projekt`, `program`, `kodProgramu`, `kodProjektu`, `typ`, and `oblast`.
 
 ```bash
 hs dotace hledat --dotaz 'ico:00000205 AND castka:>1000000' --razeni 3
@@ -17,6 +17,8 @@ hs dotace hledat --dotaz 'typ:Evropska AND oblast:ZivotniProstredi'
 ```
 
 Sorting is a numeric enum; inspect leaf help before selecting `--razeni`. Search first, then retrieve material records by `results[].id`. Search and detail can have the same top-level fields; detail still confirms the record exists under that ID.
+
+“Largest” is ambiguous. The descending API sort can follow a normalized/assumed amount that differs from raw `subsidyAmount`; `payedAmount` can be null. State the ranked field, compare raw and normalized values when they diverge, and do not describe an award as cash paid without disbursement evidence.
 
 ## Public procurement (`verejnezakazky`)
 
@@ -36,6 +38,14 @@ Use `--ico` for either buyer or supplier. Use `icozadavatel:<ico>` or `icododava
 Do not describe `zahajeny:1` matches as currently accepting bids without checking a live submission deadline or primary notice. Records can have null deadlines or already name a supplier.
 
 Search records can already contain buyer, suppliers, CPV, prices, dates, state, issue flags, forms, documents, and changelog. If `verejnezakazky get <results[].id>` returns 404 for a live search result, treat detail as unavailable and use the embedded search record; do not guess a replacement ID.
+
+To trace procurement into signed contracts, search contracts using several independent keys: buyer IČO, supplier IČO, distinctive subject/title terms, amount, date window, and procurement/reference number when indexed. Grade the match rather than asserting identity:
+
+- Strong: buyer and supplier IČOs plus distinctive title/reference and compatible value/date.
+- Plausible: organization and title align, but the procurement is split into lots or the value/date differs.
+- Unverified: only names, broad subject text, or temporal proximity align.
+
+Procurement value can be estimated or final and often excludes VAT; a contract value represents a different stage. Do not call them equal spend without field-level evidence.
 
 ## Insolvency (`insolvence`)
 
