@@ -130,6 +130,119 @@ describe('Effect CLI command surface', () => {
     }
   });
 
+  test('requires positive explicit-unit timeout values', async () => {
+    const [unitless, zero, negative, valid] = await Promise.all([
+      runCli(['--timeout', '30', '--dry-run', 'smlouvy', 'hledat']),
+      runCli(['--timeout', '0s', '--dry-run', 'smlouvy', 'hledat']),
+      runCli(['--timeout=-1s', '--dry-run', 'smlouvy', 'hledat']),
+      runCli(['--timeout', '250ms', '--dry-run', 'smlouvy', 'hledat']),
+    ]);
+
+    expect([unitless.exitCode, zero.exitCode, negative.exitCode, valid.exitCode]).toEqual([2, 2, 2, 0]);
+    expect(unitless.stderr).toContain('explicit unit');
+  });
+
+  test('renders timeout failures with a stable sanitized envelope', async () => {
+    const server = Bun.serve({
+      port: 0,
+      async fetch() {
+        await Bun.sleep(200);
+        return Response.json({ tooLate: true });
+      },
+    });
+    try {
+      const result = await runCli(['--json', '--timeout', '20ms', 'smlouvy', 'hledat'], {
+        HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}/api/v2`,
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+      const envelope = JSON.parse(result.stdout);
+      expect(envelope).toMatchObject({
+        status: null,
+        ok: false,
+        body: null,
+        error: {
+          code: 'REQUEST_TIMEOUT',
+          retryable: true,
+          details: { method: 'GET', timeoutMs: 20 },
+        },
+      });
+      expect(JSON.stringify(envelope)).not.toContain('HLIDAC_STATU_API_TOKEN');
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test('keeps HTTP failures as responses and computes retryability from method and status', async () => {
+    let calls = 0;
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        calls++;
+        return Response.json({ reason: 'busy' }, { status: 503 });
+      },
+    });
+    const env = { HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}/api/v2` };
+    try {
+      const [read, write] = await Promise.all([
+        runCli(['--json', 'smlouvy', 'hledat'], env),
+        runCli(['--json', 'datasety', 'post', '--data', '{}'], env),
+      ]);
+
+      expect([read.exitCode, write.exitCode, calls]).toEqual([1, 1, 2]);
+      expect(read.stderr).toBe('');
+      expect(write.stderr).toBe('');
+      expect(JSON.parse(read.stdout)).toMatchObject({
+        status: 503,
+        body: { reason: 'busy' },
+        error: { code: 'HTTP_FAILURE', retryable: true, details: { status: 503, method: 'GET' } },
+      });
+      expect(JSON.parse(write.stdout)).toMatchObject({
+        status: 503,
+        body: { reason: 'busy' },
+        error: { code: 'HTTP_FAILURE', retryable: false, details: { status: 503, method: 'POST' } },
+      });
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  test('renders missing credentials and transport failures as stable structured results', async () => {
+    const unavailable = Bun.serve({ port: 0, fetch: () => Response.json({ ok: true }) });
+    const unavailablePort = unavailable.port;
+    unavailable.stop(true);
+
+    const [missing, transport] = await Promise.all([
+      runCli(['--json', 'smlouvy', 'hledat']),
+      runCli(['--json', '--timeout', '200ms', 'smlouvy', 'hledat'], {
+        HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${unavailablePort}/api/v2`,
+      }),
+    ]);
+
+    expect([missing.exitCode, transport.exitCode]).toEqual([2, 1]);
+    expect([missing.stderr, transport.stderr]).toEqual(['', '']);
+    expect(JSON.parse(missing.stdout)).toMatchObject({
+      status: null,
+      ok: false,
+      error: { code: 'MISSING_CREDENTIALS', retryable: false },
+    });
+    expect(JSON.parse(transport.stdout)).toMatchObject({
+      status: null,
+      ok: false,
+      error: { code: 'TRANSPORT_FAILURE', retryable: true },
+    });
+    expect(`${missing.stdout}${transport.stdout}`).not.toContain('Authorization');
+
+    const unsafeBase = await runCli(['--json', 'smlouvy', 'hledat', '--dotaz', 'private-value'], {
+      HLIDAC_STATU_BASE_URL: 'http://user:test-secret@127.0.0.1:9/api/v2',
+    });
+    expect(unsafeBase.exitCode).toBe(2);
+    expect(JSON.parse(unsafeBase.stdout)).toMatchObject({ error: { code: 'INVALID_INPUT' } });
+    expect(`${unsafeBase.stdout}${unsafeBase.stderr}`).not.toContain('test-secret');
+    expect(`${unsafeBase.stdout}${unsafeBase.stderr}`).not.toContain('private-value');
+  });
+
   test('validates required arguments, numeric options, and enums before execution', async () => {
     const [missing, invalidNumber, invalidEnum, validEnum] = await Promise.all([
       runCli(['--dry-run', 'smlouvy', 'get']),

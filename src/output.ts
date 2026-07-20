@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { Effect } from 'effect';
 import type { HlidacResult } from './api.js';
+import { type CliFailure, exitCodeForFailure, httpFailure } from './errors.js';
 
 export interface CliOutcome {
   stdout: string;
@@ -18,7 +19,7 @@ const encoder = new TextEncoder();
 export function formatOutcome(result: HlidacResult, options: OutcomeOptions = {}): CliOutcome {
   const { output } = options;
 
-  if (result.bytes !== undefined) {
+  if (result._tag === 'BinaryResult') {
     if (output === undefined) {
       return {
         stdout: '',
@@ -34,7 +35,12 @@ export function formatOutcome(result: HlidacResult, options: OutcomeOptions = {}
     };
   }
 
-  const stdout = result.body !== undefined ? JSON.stringify(result.body, null, 2) : result.raw;
+  const stdout =
+    result._tag === 'JsonResult'
+      ? JSON.stringify(result.body, null, 2)
+      : result._tag === 'TextResult'
+        ? result.text
+        : '';
   const exitCode = result.status >= 400 ? 1 : 0;
   const stderr = result.status >= 400 ? `HTTP ${result.status}` : undefined;
 
@@ -64,20 +70,32 @@ export function formatEnvelope(result: HlidacResult, options: EnvelopeOptions = 
     request: {
       method: result.method,
       url: result.url,
-      ...(dryRun && result.dryRunRequest ? result.dryRunRequest : {}),
+      ...(result._tag === 'DryRunResult' ? result.request : {}),
     },
     status: result.status,
     ok,
   };
-  if (result.bytes !== undefined) {
+  if (result._tag === 'BinaryResult') {
     envelope.contentType = result.contentType;
     envelope.bodyBytes = result.bytes.byteLength;
     envelope.body = null;
+  } else if (result._tag === 'JsonResult') {
+    envelope.body = result.body;
+  } else if (result._tag === 'TextResult') {
+    envelope.body = result.text.length > 0 ? result.text : null;
   } else {
-    envelope.body = result.body !== undefined ? result.body : result.raw.length > 0 ? result.raw : null;
+    envelope.body = null;
   }
   if (dryRun) envelope.dryRun = true;
-  if (!dryRun && result.status >= 400) envelope.error = result.body ?? result.raw;
+  if (!dryRun && result.status >= 400) {
+    const failure = httpFailure(result.method, result.url, result.status);
+    envelope.error = {
+      code: failure.code,
+      message: failure.message,
+      retryable: failure.retryable,
+      details: failure.details,
+    };
+  }
 
   const stdout = JSON.stringify(envelope, null, 2);
   const exitCode = ok ? 0 : 1;
@@ -95,6 +113,40 @@ export function formatEnvelope(result: HlidacResult, options: EnvelopeOptions = 
   // Binary body with --json and no -o: envelope JSON carries contentType + bodyBytes only.
   // The bytes themselves are never embedded in the envelope (would require base64 + size blow-up).
   return { stdout, exitCode };
+}
+
+export function formatFailure(
+  failure: CliFailure,
+  request: { readonly method: string; readonly url: string },
+  options: OutcomeOptions = {},
+): CliOutcome {
+  const envelope = JSON.stringify(
+    {
+      request,
+      status: null,
+      ok: false,
+      body: null,
+      error: {
+        code: failure.code,
+        message: failure.message,
+        retryable: failure.retryable,
+        details: failure.details,
+      },
+    },
+    null,
+    2,
+  );
+  const exitCode = exitCodeForFailure(failure);
+  if (options.output) {
+    const bytes = encoder.encode(envelope);
+    return {
+      stdout: '',
+      stderr: `wrote ${bytes.byteLength} bytes to ${options.output}`,
+      exitCode,
+      file: { path: options.output, bytes },
+    };
+  }
+  return { stdout: envelope, exitCode };
 }
 
 export class CliExit {

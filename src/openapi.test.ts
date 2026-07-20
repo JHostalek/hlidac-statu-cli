@@ -99,6 +99,6 @@ describe('embedded OpenAPI contract', () => {
     const document = buildSchemaDocument(planCommands(spec as OpenApiSpec), '0.0.0-test');
     const digest = new Bun.CryptoHasher('sha256').update(JSON.stringify(document)).digest('hex');
 
-    expect(digest).toBe('7240198c2841133389997ebe339c86e3384950ba9d3e105398bb27fa71af7cea');
+    expect(digest).toBe('a0f895e7cccab2bbdfb51b2852ad084118cd2354903a5967480a8dbbc5e82ab6');
   });
 });

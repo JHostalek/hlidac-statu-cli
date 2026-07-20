@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { CliConfig, Command, ValidationError } from '@effect/cli';
+import * as FetchHttpClient from '@effect/platform/FetchHttpClient';
 import { BunContext, BunRuntime } from '@effect/platform-bun';
-import { Cause, Effect, Exit, Option } from 'effect';
+import { Cause, Effect, Exit, Layer, Option } from 'effect';
 import packageJson from '../package.json' with { type: 'json' };
+import { HlidacClientLive } from './api.js';
 import { makeCliCommand, makeRootHelpCommand } from './cli-app.js';
 import { type OpenApiSpec, planCommands } from './generator.js';
 import spec from './openapi.json' with { type: 'json' };
@@ -11,8 +13,8 @@ import { CliExit } from './output.js';
 const plans = planCommands(spec as OpenApiSpec);
 const args = process.argv.slice(2);
 const topLevelCommands = new Set([...plans.map((plan) => plan.tree[0]), 'raw', 'schema']);
-const globalOptions = new Set(['--json', '--dry-run', '--output', '-o']);
-const valueOptions = new Set(['--output', '-o', '--completions', '--log-level']);
+const globalOptions = new Set(['--json', '--dry-run', '--output', '-o', '--timeout']);
+const valueOptions = new Set(['--output', '-o', '--timeout', '--completions', '--log-level']);
 const booleanOptions = new Set(['--json', '--dry-run', '--help', '-h', '--wizard', '--version']);
 const booleanValues = new Set(['true', 'false', '1', '0', 'y', 'yes', 'n', 'no', 'on', 'off']);
 const missingGlobalValue = args.find((argument, index) => {
@@ -81,6 +83,7 @@ const placementCheck = argvError
 const program = placementCheck.pipe(
   Effect.zipRight(runCommand),
   Effect.provide(CliConfig.layer({ isCaseSensitive: true, autoCorrectLimit: 0 })),
+  Effect.provide(HlidacClientLive.pipe(Layer.provide(FetchHttpClient.layer))),
   Effect.provide(BunContext.layer),
 );
 

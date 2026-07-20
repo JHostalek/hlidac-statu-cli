@@ -1,3 +1,4 @@
+import { schemaPathNotFound } from '../errors.js';
 import { type CommandPlan, cleanHelp, type JsonSchema, type RequestBodyPlan, type ResponsePlan } from '../generator.js';
 
 export interface ParamEntry {
@@ -34,6 +35,7 @@ const GLOBAL_OPTIONS: SchemaDocument['globalOptions'] = [
   { name: 'json', flags: ['--json'], type: 'boolean' },
   { name: 'dry-run', flags: ['--dry-run'], type: 'boolean' },
   { name: 'output', flags: ['-o', '--output'], type: 'string' },
+  { name: 'timeout', flags: ['--timeout'], type: 'string' },
   { name: 'completions', flags: ['--completions'], type: 'string' },
   { name: 'log-level', flags: ['--log-level'], type: 'string' },
   { name: 'help', flags: ['-h', '--help'], type: 'boolean' },
@@ -94,16 +96,6 @@ export function buildSchemaDocument(plans: CommandPlan[], cliVersion: string): S
   };
 }
 
-export class SchemaPathNotFoundError extends Error {
-  readonly code = 'SCHEMA_PATH_NOT_FOUND';
-  readonly exitCode = 2;
-  readonly retryable = false;
-
-  constructor(readonly details: { path: string[]; suggestions: string[][] }) {
-    super(`unknown schema path: ${details.path.join(' ')}`);
-  }
-}
-
 function editDistance(left: string, right: string): number {
   const row = Array.from({ length: right.length + 1 }, (_, index) => index);
   for (let leftIndex = 1; leftIndex <= left.length; leftIndex++) {
@@ -148,7 +140,7 @@ export function filterSchemaDocument(document: SchemaDocument, path: string[]): 
     path.every((segment, index) => command.path[index] === segment),
   );
   if (commands.length === 0) {
-    throw new SchemaPathNotFoundError({ path, suggestions: schemaPathSuggestions(document, path) });
+    throw schemaPathNotFound(path, schemaPathSuggestions(document, path));
   }
   return {
     ...document,

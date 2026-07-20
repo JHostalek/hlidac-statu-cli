@@ -51,7 +51,7 @@ Envelope (`--json`) — wrap everything for programmatic consumption:
 ```bash
 hs --json smlouvy hledat --dotaz x
 # { "request": {"method":"GET","url":"..."}, "status":200, "ok":true, "body": ... }
-# on 4xx/5xx: ok=false, error=<body>, exit 1
+# on 4xx/5xx: ok=false, body=<server payload>, error={code,message,retryable,details}, exit 1
 ```
 
 Dry-run (`--dry-run`) — resolve URL + query, do not call the API. Forces envelope shape, always exit 0:
@@ -59,6 +59,12 @@ Dry-run (`--dry-run`) — resolve URL + query, do not call the API. Forces envel
 ```bash
 hs --dry-run smlouvy hledat --dotaz x
 # { "request": {...}, "status":0, "ok":true, "body":null, "dryRun":true }
+```
+
+Live requests time out after 30 seconds by default. Override with a positive explicit-unit duration (`ms`, `s`, or `m`) before the command path:
+
+```bash
+hs --timeout 90s smlouvy hledat --dotaz x
 ```
 
 File output (`-o, --output <path>`) — write the response body to a file instead of stdout. Combines with any other mode; stderr gets a one-line `wrote N bytes to <path>` confirmation:

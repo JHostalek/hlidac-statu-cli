@@ -1,20 +1,22 @@
 import { Args, Command, HelpDoc, Options } from '@effect/cli';
 import { Effect, Option } from 'effect';
-import { HlidacStatuError, hlidacRequest, type QueryValue } from './api.js';
-import { handleRaw, RAW_METHODS } from './commands/raw.js';
-import { buildSchemaDocument, filterSchemaDocument, SchemaPathNotFoundError } from './commands/schema.js';
+import { type HlidacClient, hlidacRequest, type QueryValue } from './api.js';
+import { parseRawQuery, RAW_METHODS } from './commands/raw.js';
+import { buildSchemaDocument, filterSchemaDocument } from './commands/schema.js';
+import { CliFailure, exitCodeForFailure, internalFailure } from './errors.js';
 import { type CommandPlan, cleanHelp, type JsonSchema, type Parameter } from './generator.js';
-import { type CliExit, type CliOutcome, emitOutcome, formatEnvelope, formatOutcome } from './output.js';
+import { type CliExit, type CliOutcome, emitOutcome, formatEnvelope, formatFailure, formatOutcome } from './output.js';
 
 interface GlobalOptions {
   readonly json: boolean;
   readonly dryRun: boolean;
   readonly output: Option.Option<string>;
+  readonly timeout: number;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: runtime-generated OpenAPI trees require one erased heterogeneous command type.
 type AnyCommand = Command.Command<string, any, any, any>;
-type HsCommand = Command.Command<string, never, CliExit, unknown>;
+type HsCommand = Command.Command<string, HlidacClient, CliExit, unknown>;
 
 interface CommandNode {
   readonly name: string;
@@ -115,6 +117,18 @@ function parseJson(value: string): unknown {
   return JSON.parse(value);
 }
 
+export function parseTimeout(value: string): number {
+  const match = /^(\d+(?:\.\d+)?)(ms|s|m)$/.exec(value);
+  if (!match) throw new CliUsageError('timeout must be a positive duration with an explicit unit: ms, s, or m');
+  const amount = Number(match[1]);
+  const multiplier = match[2] === 'ms' ? 1 : match[2] === 's' ? 1_000 : 60_000;
+  const milliseconds = amount * multiplier;
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) {
+    throw new CliUsageError('timeout must be greater than zero');
+  }
+  return milliseconds;
+}
+
 function jsonOption(required: boolean): Options.Options<unknown> {
   const option = Options.text('data').pipe(
     Options.withAlias('d'),
@@ -164,15 +178,52 @@ export function resolveQueryParameters(
 }
 
 function failureOutcome(error: unknown): CliOutcome {
-  if (error instanceof HlidacStatuError) return { stdout: '', stderr: error.message, exitCode: error.exitCode };
   if (error instanceof CliUsageError) return { stdout: '', stderr: error.message, exitCode: error.exitCode };
-  return { stdout: '', stderr: error instanceof Error ? error.message : String(error), exitCode: 1 };
+  const failure = internalFailure();
+  return { stdout: '', stderr: failure.message, exitCode: exitCodeForFailure(failure) };
 }
 
-function runOutcome(effect: Effect.Effect<CliOutcome, unknown>): Effect.Effect<void, CliExit> {
-  return effect.pipe(
-    Effect.catchAll((error) => Effect.succeed(failureOutcome(error))),
-    Effect.flatMap(emitOutcome),
+function requestFromFailure(failure: CliFailure): { method: string; url: string } {
+  return (
+    failure.request ?? {
+      method: typeof failure.details.method === 'string' ? failure.details.method : '',
+      url: '',
+    }
+  );
+}
+
+function executeRequest(
+  method: string,
+  path: string,
+  query: Record<string, QueryValue>,
+  body: unknown,
+  globals: GlobalOptions,
+): Effect.Effect<void, CliExit, HlidacClient> {
+  const dryRun = globals.dryRun;
+  const output = outputPath(globals);
+  const program = hlidacRequest(method, path, query, body, { dryRun, timeoutMs: globals.timeout }).pipe(
+    Effect.matchEffect({
+      onFailure: (failure) =>
+        emitOutcome(
+          globals.json || dryRun
+            ? formatFailure(failure, requestFromFailure(failure), { output })
+            : { stdout: '', stderr: failure.message, exitCode: exitCodeForFailure(failure) },
+        ),
+      onSuccess: (result) =>
+        emitOutcome(
+          globals.json || dryRun ? formatEnvelope(result, { dryRun, output }) : formatOutcome(result, { output }),
+        ),
+    }),
+  );
+  return program.pipe(
+    Effect.catchAllDefect(() => {
+      const failure = internalFailure();
+      return emitOutcome(
+        globals.json || dryRun
+          ? formatFailure(failure, { method, url: '' })
+          : { stdout: '', stderr: failure.message, exitCode: exitCodeForFailure(failure) },
+      );
+    }),
   );
 }
 
@@ -181,7 +232,7 @@ function requestOutcome(
   values: Record<string, unknown>,
   globals: GlobalOptions,
   argv: readonly string[],
-): Effect.Effect<void, CliExit> {
+): Effect.Effect<void, CliExit, HlidacClient> {
   let resolvedPath = plan.path;
   for (const [index, parameter] of plan.pathParams.entries()) {
     resolvedPath = resolvedPath.replace(`{${parameter.name}}`, encodeURIComponent(String(values[`path${index}`])));
@@ -195,18 +246,7 @@ function requestOutcome(
   }
 
   const body = plan.hasRequestBody ? optionValue(values.data) : undefined;
-  const dryRun = globals.dryRun;
-  const output = outputPath(globals);
-  return runOutcome(
-    Effect.tryPromise({
-      try: () => hlidacRequest(plan.method, resolvedPath, query, body, { dryRun }),
-      catch: (error) => error,
-    }).pipe(
-      Effect.map((result) =>
-        globals.json || dryRun ? formatEnvelope(result, { dryRun, output }) : formatOutcome(result, { output }),
-      ),
-    ),
-  );
+  return executeRequest(plan.method, resolvedPath, query, body, globals);
 }
 
 function generatedCommand(
@@ -279,19 +319,7 @@ function rawCommand(root: Command.Command<'hs', never, never, GlobalOptions>): A
   const data = jsonOption(false);
   return Command.make('raw', { method, path, params, data }, ({ method, path, params, data }) =>
     root.pipe(
-      Effect.flatMap((globals) =>
-        runOutcome(
-          Effect.tryPromise({
-            try: () =>
-              handleRaw(method, path, params, optionValue(data), {
-                json: globals.json,
-                dryRun: globals.dryRun,
-                output: outputPath(globals),
-              }),
-            catch: (error) => error,
-          }),
-        ),
-      ),
+      Effect.flatMap((globals) => executeRequest(method, path, parseRawQuery(params), optionValue(data), globals)),
     ),
   ).pipe(
     Command.withDescription(
@@ -307,7 +335,7 @@ function schemaCommand(plans: CommandPlan[], version: string): AnyCommand {
       const document = filterSchemaDocument(buildSchemaDocument(plans, version), path);
       return emitOutcome({ stdout: JSON.stringify(document, null, 2), exitCode: 0 });
     } catch (error) {
-      if (!(error instanceof SchemaPathNotFoundError)) return emitOutcome(failureOutcome(error));
+      if (!(error instanceof CliFailure)) return emitOutcome(failureOutcome(error));
       return emitOutcome({
         stdout: JSON.stringify(
           {
@@ -321,7 +349,7 @@ function schemaCommand(plans: CommandPlan[], version: string): AnyCommand {
           null,
           2,
         ),
-        exitCode: error.exitCode,
+        exitCode: exitCodeForFailure(error),
       });
     }
   }).pipe(Command.withDescription('Print the machine-readable command tree as JSON')) as AnyCommand;
@@ -339,7 +367,12 @@ function makeRootCommand(): Command.Command<'hs', never, never, GlobalOptions> {
     Options.withDescription('write the selected response representation to a file'),
     Options.optional,
   );
-  const root = Command.make('hs', { json, dryRun, output }).pipe(
+  const timeout = Options.text('timeout').pipe(
+    Options.withDescription('request timeout with explicit unit (ms, s, or m); default 30s'),
+    Options.mapTryCatch(parseTimeout, (error) => HelpDoc.p(error instanceof Error ? error.message : String(error))),
+    Options.withDefault(30_000),
+  );
+  const root = Command.make('hs', { json, dryRun, output, timeout }).pipe(
     Command.withDescription('CLI wrapper for the Hlídač státu REST API v2'),
   );
   return root;

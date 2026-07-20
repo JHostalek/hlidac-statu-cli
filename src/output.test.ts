@@ -1,14 +1,53 @@
 import { describe, expect, test } from 'bun:test';
-import type { HlidacResult } from './api.js';
+import type { BinaryResult, DryRunResult, JsonResult, TextResult } from './api.js';
 import { formatEnvelope, formatOutcome } from './output.js';
 
-const base = (over: Partial<HlidacResult>): HlidacResult => ({
+const base = (over: Partial<JsonResult>): JsonResult => ({
+  _tag: 'JsonResult',
   method: 'GET',
   url: 'https://api.hlidacstatu.cz/api/v2/x',
   status: 200,
   contentType: 'application/json',
-  body: undefined,
+  headers: {},
+  body: null,
   raw: '',
+  ...over,
+});
+
+const text = (value: string, over: Partial<TextResult> = {}): TextResult => ({
+  _tag: 'TextResult',
+  method: 'GET',
+  url: 'https://api.hlidacstatu.cz/api/v2/x',
+  status: 200,
+  contentType: 'text/plain',
+  headers: {},
+  text: value,
+  ...over,
+});
+
+const binary = (bytes: Uint8Array, over: Partial<BinaryResult> = {}): BinaryResult => ({
+  _tag: 'BinaryResult',
+  method: 'GET',
+  url: 'https://api.hlidacstatu.cz/api/v2/x',
+  status: 200,
+  contentType: 'application/zip',
+  headers: {},
+  bytes,
+  ...over,
+});
+
+const dryRun = (over: Partial<DryRunResult> = {}): DryRunResult => ({
+  _tag: 'DryRunResult',
+  method: 'GET',
+  url: 'https://api.hlidacstatu.cz/api/v2/x',
+  status: 0,
+  contentType: '',
+  headers: {},
+  request: {
+    contentType: null,
+    body: null,
+    authentication: { required: true, scheme: 'Token <redacted>' },
+  },
   ...over,
 });
 
@@ -31,14 +70,14 @@ describe('formatOutcome', () => {
   });
 
   test('falls back to raw text when body is undefined', () => {
-    const outcome = formatOutcome(base({ status: 502, body: undefined, raw: '<html>Bad Gateway</html>' }));
+    const outcome = formatOutcome(text('<html>Bad Gateway</html>', { status: 502, contentType: 'text/html' }));
     expect(outcome.exitCode).toBe(1);
     expect(outcome.stdout).toBe('<html>Bad Gateway</html>');
   });
 
   test('binary body without -o errors with content-type and byte count', () => {
     const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
-    const outcome = formatOutcome(base({ status: 200, contentType: 'application/zip', bytes }));
+    const outcome = formatOutcome(binary(bytes));
     expect(outcome.exitCode).toBe(1);
     expect(outcome.stdout).toBe('');
     expect(outcome.stderr).toBe('binary response (application/zip, 4 bytes); use -o <path> to save');
@@ -47,7 +86,7 @@ describe('formatOutcome', () => {
 
   test('binary body with -o routes bytes to file channel, exit 0', () => {
     const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff]);
-    const outcome = formatOutcome(base({ status: 200, contentType: 'application/zip', bytes }), {
+    const outcome = formatOutcome(binary(bytes), {
       output: '/tmp/out.zip',
     });
     expect(outcome.exitCode).toBe(0);
@@ -59,7 +98,7 @@ describe('formatOutcome', () => {
 
   test('binary body with -o propagates 4xx status to exit code', () => {
     const outcome = formatOutcome(
-      base({ status: 500, contentType: 'application/octet-stream', bytes: new Uint8Array([0]) }),
+      binary(new Uint8Array([0]), { status: 500, contentType: 'application/octet-stream' }),
       { output: '/tmp/err.bin' },
     );
     expect(outcome.exitCode).toBe(1);
@@ -67,7 +106,7 @@ describe('formatOutcome', () => {
   });
 
   test('binary body with missing content-type falls back to "unknown content-type"', () => {
-    const outcome = formatOutcome(base({ status: 200, contentType: '', bytes: new Uint8Array([0]) }));
+    const outcome = formatOutcome(binary(new Uint8Array([0]), { contentType: '' }));
     expect(outcome.stderr).toContain('unknown content-type');
   });
 
@@ -114,14 +153,17 @@ describe('formatEnvelope', () => {
     const parsed = JSON.parse(outcome.stdout);
     expect(parsed.ok).toBe(false);
     expect(parsed.status).toBe(404);
-    expect(parsed.error).toEqual({ error: 'not found' });
+    expect(parsed.error).toMatchObject({
+      code: 'HTTP_FAILURE',
+      retryable: false,
+      details: { method: 'GET', status: 404 },
+    });
   });
 
   test('dryRun forces ok=true, exit 0, dryRun:true marker', () => {
-    const outcome = formatEnvelope(
-      base({ method: 'GET', url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x', status: 0 }),
-      { dryRun: true },
-    );
+    const outcome = formatEnvelope(dryRun({ url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x' }), {
+      dryRun: true,
+    });
     expect(outcome.exitCode).toBe(0);
     const parsed = JSON.parse(outcome.stdout);
     expect(parsed.dryRun).toBe(true);
@@ -131,7 +173,7 @@ describe('formatEnvelope', () => {
   });
 
   test('missing body falls back to raw, then null', () => {
-    const withRaw = JSON.parse(formatEnvelope(base({ status: 200, raw: 'plaintext' })).stdout);
+    const withRaw = JSON.parse(formatEnvelope(text('plaintext')).stdout);
     expect(withRaw.body).toBe('plaintext');
     const empty = JSON.parse(formatEnvelope(base({ status: 200 })).stdout);
     expect(empty.body).toBeNull();
@@ -139,7 +181,7 @@ describe('formatEnvelope', () => {
 
   test('binary response exposes contentType + bodyBytes, body null, no file', () => {
     const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff]);
-    const outcome = formatEnvelope(base({ status: 200, contentType: 'application/zip', bytes }));
+    const outcome = formatEnvelope(binary(bytes));
     expect(outcome.exitCode).toBe(0);
     expect(outcome.file).toBeUndefined();
     const parsed = JSON.parse(outcome.stdout);
@@ -162,10 +204,10 @@ describe('formatEnvelope', () => {
   });
 
   test('dryRun + -o writes envelope JSON to file', () => {
-    const outcome = formatEnvelope(
-      base({ status: 0, url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x' }),
-      { dryRun: true, output: '/tmp/dry.json' },
-    );
+    const outcome = formatEnvelope(dryRun({ url: 'https://api.hlidacstatu.cz/api/v2/smlouvy/hledat?dotaz=x' }), {
+      dryRun: true,
+      output: '/tmp/dry.json',
+    });
     expect(outcome.exitCode).toBe(0);
     expect(outcome.file?.path).toBe('/tmp/dry.json');
     const parsed = JSON.parse(new TextDecoder().decode(outcome.file?.bytes));

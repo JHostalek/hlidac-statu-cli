@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { CliFailure, exitCodeForFailure } from '../errors.js';
 import { planCommands } from '../generator.js';
 import { buildSchemaDocument, filterSchemaDocument } from './schema.js';
 
@@ -22,6 +23,7 @@ describe('buildSchemaDocument', () => {
         { name: 'json', flags: ['--json'], type: 'boolean' },
         { name: 'dry-run', flags: ['--dry-run'], type: 'boolean' },
         { name: 'output', flags: ['-o', '--output'], type: 'string' },
+        { name: 'timeout', flags: ['--timeout'], type: 'string' },
         { name: 'completions', flags: ['--completions'], type: 'string' },
         { name: 'log-level', flags: ['--log-level'], type: 'string' },
         { name: 'help', flags: ['-h', '--help'], type: 'boolean' },
@@ -157,10 +159,11 @@ describe('filterSchemaDocument', () => {
 
     expect(thrown).toMatchObject({
       code: 'SCHEMA_PATH_NOT_FOUND',
-      exitCode: 2,
       retryable: false,
       details: { path: ['smlouvi'], suggestions: [['smlouvy']] },
     });
+    expect(thrown).toBeInstanceOf(CliFailure);
+    expect(exitCodeForFailure(thrown as CliFailure)).toBe(2);
   });
 });
 
