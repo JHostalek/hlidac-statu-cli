@@ -159,4 +159,13 @@ describe('hlidacRequest', () => {
     expect(result.bytes).toBeInstanceOf(Uint8Array);
     expect(result.bytes?.byteLength).toBe(3);
   });
+
+  test('missing Content-Type on HTTP error preserves the textual error', async () => {
+    fetchMock.mockResolvedValue(new Response('Překročen maximální počet API requestů.', { status: 429 }));
+    const result = await hlidacRequest('GET', '/firmy/ico/24738123');
+    expect(result.status).toBe(429);
+    expect(result.bytes).toBeUndefined();
+    expect(result.body).toBeUndefined();
+    expect(result.raw).toBe('Překročen maximální počet API requestů.');
+  });
 });
