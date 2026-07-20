@@ -27,6 +27,8 @@
   "packageManager": "bun@1.3.14",
   "scripts": {
     "build": "bun build src/cli.ts --compile --outfile dist/hs",
+    "release:package": "bun scripts/release.ts package",
+    "release:verify": "bun scripts/release.ts verify",
     "dev": "bun --watch src/cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
