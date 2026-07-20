@@ -28,7 +28,8 @@
     "hs": "./dist/hs.js"
   },
   "files": [
-    "dist/hs.js"
+    "dist/hs.js",
+    "skills/hlidac-statu"
   ],
   "engines": {
     "node": ">=22.12.0",

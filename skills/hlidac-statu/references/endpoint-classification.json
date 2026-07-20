@@ -1,0 +1,205 @@
+[
+  {
+    "domain": "diagnostics",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /ping/{text}",
+      "GET /getmyip",
+      "GET /Check"
+    ]
+  },
+  {
+    "domain": "diagnostics",
+    "exposure": "avoid",
+    "effect": "read",
+    "operations": [
+      "GET /getexception"
+    ]
+  },
+  {
+    "domain": "bulk-data",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /dumps",
+      "GET /dumpItems/{datatype}",
+      "GET /dumpZip/{datatype}/{date}"
+    ]
+  },
+  {
+    "domain": "ai-task-infrastructure",
+    "exposure": "avoid",
+    "effect": "mixed",
+    "operations": [
+      "POST /aitask/CreateTask",
+      "GET /aitask/Check",
+      "GET /aitask/GetNextTask",
+      "POST /aitask/TaskDone",
+      "GET /aitask/SetTaskStatus",
+      "GET /aitask/RestartTask",
+      "GET /aitask/GetTasks"
+    ]
+  },
+  {
+    "domain": "custom-datasets",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /datasety",
+      "GET /datasety/{datasetId}",
+      "GET /datasety/{datasetId}/hledat",
+      "GET /datasety/{datasetId}/zaznamy/{itemId}",
+      "GET /datasety/{datasetId}/zaznamy/{itemId}/existuje"
+    ]
+  },
+  {
+    "domain": "custom-datasets",
+    "exposure": "conditional",
+    "effect": "write",
+    "operations": [
+      "POST /datasety",
+      "PUT /datasety",
+      "DELETE /datasety/{datasetId}",
+      "POST /datasety/{datasetId}/zaznamy/{itemId}",
+      "POST /datasety/{datasetId}/zaznamy"
+    ]
+  },
+  {
+    "domain": "subsidies",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /dotace/hledat",
+      "GET /dotace/{id}"
+    ]
+  },
+  {
+    "domain": "companies",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /firmy/ico/{ico}",
+      "GET /firmy/{jmenoFirmy}"
+    ]
+  },
+  {
+    "domain": "companies",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /firmy/social",
+      "GET /firmy/GetDetailInfo"
+    ]
+  },
+  {
+    "domain": "insolvency",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /insolvence/hledat",
+      "GET /insolvence/{id}"
+    ]
+  },
+  {
+    "domain": "ocr-infrastructure",
+    "exposure": "avoid",
+    "effect": "mixed",
+    "operations": [
+      "POST /ocr/Save",
+      "GET /ocr/AddTask",
+      "GET /ocr/Stats"
+    ]
+  },
+  {
+    "domain": "people",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /osoby/{osobaId}",
+      "GET /osoby/hledatFtx",
+      "GET /osoby/hledat"
+    ]
+  },
+  {
+    "domain": "people",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /osoby/PolitikFromText",
+      "GET /osoby/PoliticiFromText",
+      "GET /osoby/social"
+    ]
+  },
+  {
+    "domain": "contracts",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /smlouvy/hledat",
+      "GET /smlouvy/{id}",
+      "GET /smlouvy/text/{id}",
+      "GET /smlouvy/predmet/{id}"
+    ]
+  },
+  {
+    "domain": "contracts",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /smlouvy/vsechnaID"
+    ]
+  },
+  {
+    "domain": "political-sponsorship",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /sponzoring/{icoPrijemce}"
+    ]
+  },
+  {
+    "domain": "table-extraction-infrastructure",
+    "exposure": "avoid",
+    "effect": "mixed",
+    "operations": [
+      "GET /tbls/AddTask",
+      "GET /tbls/Stats"
+    ]
+  },
+  {
+    "domain": "voice-to-text-infrastructure",
+    "exposure": "avoid",
+    "effect": "mixed",
+    "operations": [
+      "POST /voice2text/CreateTask",
+      "GET /voice2text/Check",
+      "GET /voice2text/GetNextTask",
+      "POST /voice2text/TaskDone",
+      "GET /voice2text/SetTaskStatus",
+      "GET /voice2text/RestartTask",
+      "GET /voice2text/GetTasks"
+    ]
+  },
+  {
+    "domain": "public-procurement",
+    "exposure": "default",
+    "effect": "read",
+    "operations": [
+      "GET /verejnezakazky/{id}",
+      "GET /verejnezakazky/hledat",
+      "GET /verejnezakazky/CpvOblasti"
+    ]
+  },
+  {
+    "domain": "website-monitoring",
+    "exposure": "conditional",
+    "effect": "read",
+    "operations": [
+      "GET /Weby",
+      "GET /Weby/domeny",
+      "GET /Weby/nedostupnost",
+      "GET /Weby/{id}"
+    ]
+  }
+]

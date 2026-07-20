@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hlídač státu"
+  short_description: "Research Czech public data with hs"
+  default_prompt: "Use $hlidac-statu to investigate Czech public-sector data with the hs CLI."

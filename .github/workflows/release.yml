@@ -72,7 +72,8 @@ jobs:
           bun run build:all
           bun run build:npm
           bun run smoke:node
-          sha256sum dist/hs-linux-x64 dist/hs-linux-arm64 dist/hs-darwin-x64 dist/hs-darwin-arm64 dist/hs-windows-x64.exe > dist/SHA256SUMS.txt
+          tar -czf dist/hlidac-statu-skill.tar.gz -C skills hlidac-statu
+          sha256sum dist/hs-linux-x64 dist/hs-linux-arm64 dist/hs-darwin-x64 dist/hs-darwin-arm64 dist/hs-windows-x64.exe dist/hlidac-statu-skill.tar.gz > dist/SHA256SUMS.txt
 
       - name: Attest release artifacts
         if: steps.version.outputs.release == 'true'
@@ -84,6 +85,7 @@ jobs:
             dist/hs-darwin-x64
             dist/hs-darwin-arm64
             dist/hs-windows-x64.exe
+            dist/hlidac-statu-skill.tar.gz
             dist/SHA256SUMS.txt
 
       - name: Preserve release artifacts
@@ -99,6 +101,7 @@ jobs:
             dist/hs-darwin-x64
             dist/hs-darwin-arm64
             dist/hs-windows-x64.exe
+            dist/hlidac-statu-skill.tar.gz
             dist/SHA256SUMS.txt
 
   release:
