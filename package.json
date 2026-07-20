@@ -55,7 +55,12 @@
     "openapi:validate": "bun scripts/openapi.ts validate"
   },
   "dependencies": {
-    "commander": "^15.0.0"
+    "@effect/cli": "^0.76.0",
+    "@effect/platform": "^0.97.0",
+    "@effect/platform-bun": "^0.91.0",
+    "@effect/printer": "^0.50.0",
+    "@effect/printer-ansi": "^0.50.0",
+    "effect": "^3.22.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",

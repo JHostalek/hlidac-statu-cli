@@ -23,16 +23,25 @@ export interface HlidacResult {
   body: unknown;
   raw: string;
   bytes?: Uint8Array;
+  dryRunRequest?: {
+    contentType: string | null;
+    body: unknown;
+    authentication: { required: boolean; scheme: 'Token <redacted>' };
+  };
 }
 
-export type QueryValue = string | number | boolean | undefined;
+export type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | undefined;
 
 export function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const url = new URL(baseUrl() + normalizedPath);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined) url.searchParams.set(key, String(value));
+      if (Array.isArray(value)) {
+        for (const item of value) url.searchParams.append(key, String(item));
+      } else if (value !== undefined) {
+        url.searchParams.set(key, String(value));
+      }
     }
   }
   return url.toString();
@@ -62,7 +71,22 @@ export async function hlidacRequest(
   const url = buildUrl(path, query);
 
   if (options.dryRun) {
-    return { method: upperMethod, url, status: 0, contentType: '', body: undefined, raw: '' };
+    return {
+      method: upperMethod,
+      url,
+      status: 0,
+      contentType: '',
+      body: undefined,
+      raw: '',
+      dryRunRequest: {
+        contentType: body === undefined ? null : 'application/json',
+        body: body ?? null,
+        authentication: {
+          required: process.env.HLIDAC_STATU_BASE_URL === undefined,
+          scheme: 'Token <redacted>',
+        },
+      },
+    };
   }
 
   const token = process.env.HLIDAC_STATU_API_TOKEN;

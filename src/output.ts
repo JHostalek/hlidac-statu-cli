@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs';
+import { Effect } from 'effect';
 import type { HlidacResult } from './api.js';
 
 export interface CliOutcome {
@@ -60,7 +61,11 @@ export function formatEnvelope(result: HlidacResult, options: EnvelopeOptions = 
   const { dryRun = false, output } = options;
   const ok = dryRun || (result.status >= 200 && result.status < 400);
   const envelope: Record<string, unknown> = {
-    request: { method: result.method, url: result.url },
+    request: {
+      method: result.method,
+      url: result.url,
+      ...(dryRun && result.dryRunRequest ? result.dryRunRequest : {}),
+    },
     status: result.status,
     ok,
   };
@@ -92,11 +97,16 @@ export function formatEnvelope(result: HlidacResult, options: EnvelopeOptions = 
   return { stdout, exitCode };
 }
 
-export function emitOutcome(outcome: CliOutcome): never {
-  if (outcome.file) {
-    writeFileSync(outcome.file.path, outcome.file.bytes);
-  }
-  if (outcome.stdout.length > 0) process.stdout.write(`${outcome.stdout}\n`);
-  if (outcome.stderr) process.stderr.write(`${outcome.stderr}\n`);
-  process.exit(outcome.exitCode);
+export class CliExit {
+  readonly _tag = 'CliExit';
+
+  constructor(readonly code: number) {}
+}
+
+export function emitOutcome(outcome: CliOutcome): Effect.Effect<void, CliExit> {
+  return Effect.sync(() => {
+    if (outcome.file) writeFileSync(outcome.file.path, outcome.file.bytes);
+    if (outcome.stdout.length > 0) process.stdout.write(`${outcome.stdout}\n`);
+    if (outcome.stderr) process.stderr.write(`${outcome.stderr}\n`);
+  }).pipe(Effect.flatMap(() => (outcome.exitCode === 0 ? Effect.void : Effect.fail(new CliExit(outcome.exitCode)))));
 }

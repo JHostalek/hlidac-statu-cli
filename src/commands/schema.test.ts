@@ -19,11 +19,14 @@ describe('buildSchemaDocument', () => {
       schemaVersion: 1,
       cliVersion: '9.8.7',
       globalOptions: [
-        { name: 'help', flags: ['-h', '--help'], type: 'boolean' },
-        { name: 'version', flags: ['-V', '--version'], type: 'boolean' },
         { name: 'json', flags: ['--json'], type: 'boolean' },
         { name: 'dry-run', flags: ['--dry-run'], type: 'boolean' },
         { name: 'output', flags: ['-o', '--output'], type: 'string' },
+        { name: 'completions', flags: ['--completions'], type: 'string' },
+        { name: 'log-level', flags: ['--log-level'], type: 'string' },
+        { name: 'help', flags: ['-h', '--help'], type: 'boolean' },
+        { name: 'wizard', flags: ['--wizard'], type: 'boolean' },
+        { name: 'version', flags: ['--version'], type: 'boolean' },
       ],
       errorCodes: [
         'INVALID_INPUT',

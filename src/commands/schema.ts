@@ -1,4 +1,3 @@
-import type { Command } from 'commander';
 import { type CommandPlan, cleanHelp, type JsonSchema, type RequestBodyPlan, type ResponsePlan } from '../generator.js';
 
 export interface ParamEntry {
@@ -32,11 +31,14 @@ export interface SchemaDocument {
 }
 
 const GLOBAL_OPTIONS: SchemaDocument['globalOptions'] = [
-  { name: 'help', flags: ['-h', '--help'], type: 'boolean' },
-  { name: 'version', flags: ['-V', '--version'], type: 'boolean' },
   { name: 'json', flags: ['--json'], type: 'boolean' },
   { name: 'dry-run', flags: ['--dry-run'], type: 'boolean' },
   { name: 'output', flags: ['-o', '--output'], type: 'string' },
+  { name: 'completions', flags: ['--completions'], type: 'string' },
+  { name: 'log-level', flags: ['--log-level'], type: 'string' },
+  { name: 'help', flags: ['-h', '--help'], type: 'boolean' },
+  { name: 'wizard', flags: ['--wizard'], type: 'boolean' },
+  { name: 'version', flags: ['--version'], type: 'boolean' },
 ];
 
 export const ERROR_CODES = [
@@ -152,23 +154,4 @@ export function filterSchemaDocument(document: SchemaDocument, path: string[]): 
     ...document,
     commands,
   };
-}
-
-export function registerSchema(program: Command, plans: CommandPlan[], cliVersion: string): void {
-  program
-    .command('schema')
-    .description('Print the registered command tree as JSON (one entry per leaf endpoint)')
-    .argument('[path...]', 'optional command group or leaf path')
-    .action((path: string[]) => {
-      try {
-        const document = filterSchemaDocument(buildSchemaDocument(plans, cliVersion), path);
-        process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
-      } catch (error) {
-        if (!(error instanceof SchemaPathNotFoundError)) throw error;
-        process.stdout.write(
-          `${JSON.stringify({ error: { code: error.code, message: error.message, retryable: error.retryable, details: error.details } }, null, 2)}\n`,
-        );
-        process.exitCode = error.exitCode;
-      }
-    });
 }

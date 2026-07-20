@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { Command } from 'commander';
-import { type OpenApiSpec, planCommand, planCommands, registerFromOpenApi } from './generator.js';
+import { type OpenApiSpec, planCommand, planCommands } from './generator.js';
 
 function capturePlanningError(spec: OpenApiSpec): unknown {
   try {
@@ -162,7 +161,6 @@ describe('planCommands', () => {
   test('keeps a future /schema endpoint executable through the documented raw fallback', () => {
     const spec = { paths: { '/api/v2/schema': { get: {} } } };
     const plans = planCommands(spec);
-    const registration = registerFromOpenApi(new Command(), spec);
 
     expect(plans).toMatchObject([
       {
@@ -172,10 +170,6 @@ describe('planCommands', () => {
         path: '/schema',
       },
     ]);
-    expect(registration).toEqual({
-      registered: 0,
-      skipped: [{ method: 'GET', path: '/schema', reason: 'available through hs raw' }],
-    });
   });
 
   test('rejects generated roots that collide with framework built-ins', () => {
@@ -334,106 +328,5 @@ describe('planCommands', () => {
       { type: 'integer', format: 'int32', enum: [0, 1, 100, -1] },
       { type: 'array', items: { type: 'string' } },
     ]);
-  });
-});
-
-describe('registerFromOpenApi', () => {
-  test('registers all non-colliding plans, returns count', () => {
-    const program = new Command();
-    const result = registerFromOpenApi(program, {
-      paths: {
-        '/api/v2/smlouvy/hledat': {
-          get: {
-            summary: 'Search contracts',
-            parameters: [{ name: 'dotaz', in: 'query', schema: { type: 'string' } }],
-          },
-        },
-        '/api/v2/smlouvy/{id}': {
-          get: {
-            summary: 'Get contract by id',
-            parameters: [{ name: 'id', in: 'path', required: true }],
-          },
-        },
-      },
-    });
-    expect(result.registered).toBe(2);
-    expect(result.skipped).toEqual([]);
-
-    const smlouvy = program.commands.find((c) => c.name() === 'smlouvy');
-    expect(smlouvy).toBeDefined();
-    expect(smlouvy?.commands.map((c) => c.name())).toContain('hledat');
-    expect(smlouvy?.commands.map((c) => c.name())).toContain('get');
-  });
-
-  test('attaches action to pre-existing parent created by child registration', () => {
-    const program = new Command();
-    const result = registerFromOpenApi(program, {
-      paths: {
-        '/api/v2/datasety/{datasetId}': { delete: { summary: 'Delete dataset' } },
-        '/api/v2/datasety': { get: { summary: 'List datasets' } },
-      },
-    });
-    expect(result.registered).toBe(2);
-    const datasety = program.commands.find((c) => c.name() === 'datasety');
-    expect(datasety?.description()).toBe('List datasets');
-    expect(datasety?.commands.map((c) => c.name())).toContain('delete');
-  });
-
-  test('disambiguates routes that differ only by trailing path parameters', () => {
-    const program = new Command();
-    const result = registerFromOpenApi(program, {
-      paths: {
-        '/api/v2/x/{id}': {
-          post: {
-            summary: 'POST x by id',
-            parameters: [{ name: 'id', in: 'path', required: true }],
-            requestBody: {},
-          },
-        },
-        '/api/v2/x': { post: { summary: 'POST x collection', requestBody: {} } },
-      },
-    });
-    expect(result.registered).toBe(2);
-    expect(result.skipped).toEqual([]);
-
-    const x = program.commands.find((command) => command.name() === 'x');
-    expect(x?.commands.map((command) => command.name())).toEqual(['post', 'post-by-id']);
-  });
-
-  test('encodes type and default in flag description', () => {
-    const program = new Command();
-    registerFromOpenApi(program, {
-      paths: {
-        '/api/v2/x': {
-          get: {
-            summary: 'X',
-            parameters: [
-              {
-                name: 'strana',
-                in: 'query',
-                description: 'page',
-                schema: { type: 'integer', default: 1 },
-              },
-            ],
-          },
-        },
-      },
-    });
-    const x = program.commands.find((c) => c.name() === 'x');
-    const opt = x?.options.find((o) => o.long === '--strana');
-    expect(opt?.description).toContain('integer');
-    expect(opt?.description).toContain('default 1');
-    expect(opt?.flags).toContain('<integer>');
-  });
-
-  test('parent group has no synthetic /path description', () => {
-    const program = new Command();
-    registerFromOpenApi(program, {
-      paths: {
-        '/api/v2/aitask/Check': { get: { summary: 'check' } },
-      },
-    });
-    const aitask = program.commands.find((c) => c.name() === 'aitask');
-    expect(aitask?.description()).toBe('');
   });
 });

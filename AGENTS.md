@@ -64,8 +64,8 @@ hs --dry-run smlouvy hledat --dotaz x
 File output (`-o, --output <path>`) — write the response body to a file instead of stdout. Combines with any other mode; stderr gets a one-line `wrote N bytes to <path>` confirmation:
 
 ```bash
-hs smlouvy hledat --dotaz x -o results.json         # pretty JSON → file
-hs --json smlouvy hledat --dotaz x -o envelope.json # envelope → file
+hs -o results.json smlouvy hledat --dotaz x         # pretty JSON → file
+hs --json -o envelope.json smlouvy hledat --dotaz x # envelope → file
 ```
 
 ## Binary responses
@@ -81,7 +81,7 @@ binary response (application/zip, 25782 bytes); use -o <path> to save
 With `-o`, bytes land on disk unchanged:
 
 ```bash
-hs dumpZip get smlouvy 2026-04-21 -o smlouvy.zip
+hs -o smlouvy.zip dumpZip get smlouvy 2026-04-21
 # wrote 25782 bytes to smlouvy.zip (application/zip)
 ```
 
@@ -96,7 +96,7 @@ To fetch the latest available dump for a datatype, resolve the date via `/dumps`
 
 ```bash
 DATE=$(hs dumps | jq -r 'map(select(.dataType == "smlouvy")) | max_by(.date) | .date[:10]')
-hs dumpZip get smlouvy "$DATE" -o "smlouvy-$DATE.zip"
+hs -o "smlouvy-$DATE.zip" dumpZip get smlouvy "$DATE"
 ```
 
 ## Exit codes

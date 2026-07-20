@@ -59,7 +59,7 @@ hs firmy ico get 00000205 | jq -r '.jmeno, .adresa'
 Binary endpoints (e.g. daily contract dumps) need `-o <path>`; see [AGENTS.md](./AGENTS.md#binary-responses):
 
 ```bash
-hs dumpZip get smlouvy 2026-04-21 -o smlouvy-2026-04-21.zip
+hs -o smlouvy-2026-04-21.zip dumpZip get smlouvy 2026-04-21
 ```
 
 ### escape hatch

@@ -1,17 +1,16 @@
 import { describe, expect, test } from 'bun:test';
-import { Command } from 'commander';
 import { buildSchemaDocument } from './commands/schema.js';
-import { type OpenApiSpec, planCommands, registerFromOpenApi } from './generator.js';
+import { type OpenApiSpec, planCommands } from './generator.js';
 import spec from './openapi.json' with { type: 'json' };
 
 describe('embedded OpenAPI contract', () => {
-  test('registers every operation from API 2.5.0.1', () => {
-    const result = registerFromOpenApi(new Command(), spec as OpenApiSpec);
+  test('recognizes every operation from API 2.5.0.1', () => {
+    const plans = planCommands(spec as OpenApiSpec);
 
     expect(spec.openapi).toBe('3.0.4');
     expect(spec.info.title).toBe('HlidacStatu Api 2.5.0.1');
-    expect(result.registered).toBe(63);
-    expect(result.skipped).toEqual([]);
+    expect(plans).toHaveLength(63);
+    expect(plans.every((plan) => plan.registration === 'generated')).toBe(true);
   });
 
   test('plans all embedded operations with unique executable paths', () => {
@@ -100,6 +99,6 @@ describe('embedded OpenAPI contract', () => {
     const document = buildSchemaDocument(planCommands(spec as OpenApiSpec), '0.0.0-test');
     const digest = new Bun.CryptoHasher('sha256').update(JSON.stringify(document)).digest('hex');
 
-    expect(digest).toBe('96ac1ac335d08b94dba8515898a380b1eb7c249d2af28f300fb444a4e071ff15');
+    expect(digest).toBe('7240198c2841133389997ebe339c86e3384950ba9d3e105398bb27fa71af7cea');
   });
 });

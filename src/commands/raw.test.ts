@@ -48,6 +48,13 @@ describe('handleRaw', () => {
     expect(hlidacRequestMock).not.toHaveBeenCalled();
   });
 
+  test('rejects an empty query key with exit 2 and does not call API', async () => {
+    const outcome = await handleRaw('GET', '/x', ['=value'], undefined);
+    expect(outcome.exitCode).toBe(2);
+    expect(outcome.stderr).toContain('=value');
+    expect(hlidacRequestMock).not.toHaveBeenCalled();
+  });
+
   test('json option produces an envelope payload', async () => {
     hlidacRequestMock.mockResolvedValue({
       method: 'GET',
