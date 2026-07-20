@@ -103,10 +103,6 @@ Commercial-licence-only endpoints (e.g. `/insolvence/*`, `/smlouvy/vsechnaID`) r
 
 Data retrieved via this tool is published by Hlídač státu under [CC BY 3.0 CZ](https://www.hlidacstatu.cz/texty/licence/). Any derived output you publish must attribute Hlídač státu and link back to https://www.hlidacstatu.cz.
 
-## related
-
-- [`hlidac-statu-mcp`](https://github.com/JHostalek/hlidac-statu-mcp) — MCP server variant for use with Claude Desktop and other MCP clients.
-
 ## licence
 
 MIT — see [LICENSE](./LICENSE).
