@@ -1,4 +1,6 @@
 import { Args, Command, HelpDoc, Options } from '@effect/cli';
+import type * as FileSystem from '@effect/platform/FileSystem';
+import type * as Path from '@effect/platform/Path';
 import { Effect, Option } from 'effect';
 import { type HlidacClient, hlidacRequest, type QueryValue } from './api.js';
 import { parseRawQuery, RAW_METHODS } from './commands/raw.js';
@@ -16,7 +18,8 @@ interface GlobalOptions {
 
 // biome-ignore lint/suspicious/noExplicitAny: runtime-generated OpenAPI trees require one erased heterogeneous command type.
 type AnyCommand = Command.Command<string, any, any, any>;
-type HsCommand = Command.Command<string, HlidacClient, CliExit, unknown>;
+type CommandEnvironment = HlidacClient | FileSystem.FileSystem | Path.Path;
+type HsCommand = Command.Command<string, CommandEnvironment, CliExit, unknown>;
 
 interface CommandNode {
   readonly name: string;
@@ -198,30 +201,40 @@ function executeRequest(
   query: Record<string, QueryValue>,
   body: unknown,
   globals: GlobalOptions,
-): Effect.Effect<void, CliExit, HlidacClient> {
+): Effect.Effect<void, CliExit, CommandEnvironment> {
   const dryRun = globals.dryRun;
   const output = outputPath(globals);
-  const program = hlidacRequest(method, path, query, body, { dryRun, timeoutMs: globals.timeout }).pipe(
-    Effect.matchEffect({
-      onFailure: (failure) =>
-        emitOutcome(
-          globals.json || dryRun
-            ? formatFailure(failure, requestFromFailure(failure), { output })
-            : { stdout: '', stderr: failure.message, exitCode: exitCodeForFailure(failure) },
-        ),
-      onSuccess: (result) =>
-        emitOutcome(
-          globals.json || dryRun ? formatEnvelope(result, { dryRun, output }) : formatOutcome(result, { output }),
-        ),
-    }),
+  const structured = globals.json || dryRun;
+  const outcome = hlidacRequest(method, path, query, body, { dryRun, timeoutMs: globals.timeout }).pipe(
+    Effect.flatMap((result) =>
+      structured ? formatEnvelope(result, { dryRun, output }) : Effect.succeed(formatOutcome(result, { output })),
+    ),
+    Effect.catchAll((failure) =>
+      Effect.succeed(
+        structured
+          ? formatFailure(failure, requestFromFailure(failure), { output })
+          : {
+              stdout: '',
+              stderr: failure.message,
+              exitCode: exitCodeForFailure(failure),
+              failureStyle: 'plain' as const,
+              request: requestFromFailure(failure),
+            },
+      ),
+    ),
   );
-  return program.pipe(
+  return Effect.scoped(outcome.pipe(Effect.flatMap(emitOutcome))).pipe(
     Effect.catchAllDefect(() => {
       const failure = internalFailure();
       return emitOutcome(
-        globals.json || dryRun
+        structured
           ? formatFailure(failure, { method, url: '' })
-          : { stdout: '', stderr: failure.message, exitCode: exitCodeForFailure(failure) },
+          : {
+              stdout: '',
+              stderr: failure.message,
+              exitCode: exitCodeForFailure(failure),
+              failureStyle: 'plain',
+            },
       );
     }),
   );
@@ -232,7 +245,7 @@ function requestOutcome(
   values: Record<string, unknown>,
   globals: GlobalOptions,
   argv: readonly string[],
-): Effect.Effect<void, CliExit, HlidacClient> {
+): Effect.Effect<void, CliExit, CommandEnvironment> {
   let resolvedPath = plan.path;
   for (const [index, parameter] of plan.pathParams.entries()) {
     resolvedPath = resolvedPath.replace(`{${parameter.name}}`, encodeURIComponent(String(values[`path${index}`])));

@@ -80,6 +80,25 @@ export function httpFailure(method: string, url: string, status: number): CliFai
   });
 }
 
+export function binaryOutputRequired(method: string, url: string, contentType: string): CliFailure {
+  return new CliFailure({
+    code: 'BINARY_OUTPUT_REQUIRED',
+    message: `binary response (${contentType || 'unknown content-type'}); use -o <path> to save`,
+    retryable: false,
+    details: { method, contentType: contentType || null },
+    request: { method, url },
+  });
+}
+
+export function outputFailure(destination: string): CliFailure {
+  return new CliFailure({
+    code: 'OUTPUT_FAILURE',
+    message: 'failed to write output',
+    retryable: false,
+    details: { destination },
+  });
+}
+
 export function schemaPathNotFound(path: readonly string[], suggestions: readonly (readonly string[])[]): CliFailure {
   return new CliFailure({
     code: 'SCHEMA_PATH_NOT_FOUND',

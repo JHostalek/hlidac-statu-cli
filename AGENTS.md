@@ -67,7 +67,7 @@ Live requests time out after 30 seconds by default. Override with a positive exp
 hs --timeout 90s smlouvy hledat --dotaz x
 ```
 
-File output (`-o, --output <path>`) — write the response body to a file instead of stdout. Combines with any other mode; stderr gets a one-line `wrote N bytes to <path>` confirmation:
+File output (`-o, --output <path>`) — atomically write exactly the representation that stdout would otherwise receive. Successful writes are silent:
 
 ```bash
 hs -o results.json smlouvy hledat --dotaz x         # pretty JSON → file
@@ -80,7 +80,7 @@ Non-JSON endpoints (e.g. `GET /dumpZip/{datatype}/{date}` returns `application/z
 
 ```
 $ hs dumpZip get smlouvy 2026-04-21
-binary response (application/zip, 25782 bytes); use -o <path> to save
+binary response (application/zip); use -o <path> to save
 # exit 1
 ```
 
@@ -88,7 +88,7 @@ With `-o`, bytes land on disk unchanged:
 
 ```bash
 hs -o smlouvy.zip dumpZip get smlouvy 2026-04-21
-# wrote 25782 bytes to smlouvy.zip (application/zip)
+# no stdout or stderr on success
 ```
 
 Under `--json`, the envelope for a binary response reports metadata only — `body` is `null`, and new fields `contentType` + `bodyBytes` describe what was returned:

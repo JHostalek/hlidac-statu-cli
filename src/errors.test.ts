@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  binaryOutputRequired,
   exitCodeForFailure,
   httpFailure,
   internalFailure,
   missingCredentials,
+  outputFailure,
   requestTimeout,
   schemaPathNotFound,
   transportFailure,
@@ -14,6 +16,8 @@ describe('public failure policy', () => {
     expect(exitCodeForFailure(missingCredentials('GET', 'https://example.test'))).toBe(2);
     expect(exitCodeForFailure(schemaPathNotFound(['unknown'], []))).toBe(2);
     expect(exitCodeForFailure(transportFailure('GET', 'https://example.test'))).toBe(1);
+    expect(exitCodeForFailure(binaryOutputRequired('GET', 'https://example.test', 'application/zip'))).toBe(1);
+    expect(exitCodeForFailure(outputFailure('/tmp/results.json'))).toBe(1);
     expect(exitCodeForFailure(internalFailure())).toBe(1);
   });
 

@@ -2,7 +2,7 @@ import * as HttpClient from '@effect/platform/HttpClient';
 import * as HttpClientRequest from '@effect/platform/HttpClientRequest';
 import type { HttpClientResponse } from '@effect/platform/HttpClientResponse';
 import type { HttpMethod } from '@effect/platform/HttpMethod';
-import { Config, Context, Duration, Effect, Layer, Option, Redacted } from 'effect';
+import { Clock, Config, Context, Duration, Effect, Layer, Option, Redacted, type Scope, Stream } from 'effect';
 import { CliFailure, invalidInput, missingCredentials, requestTimeout, transportFailure } from './errors.js';
 
 const DEFAULT_BASE_URL = 'https://api.hlidacstatu.cz/api/v2';
@@ -29,7 +29,9 @@ export interface TextResult extends ResultBase {
 
 export interface BinaryResult extends ResultBase {
   readonly _tag: 'BinaryResult';
-  readonly bytes: Uint8Array;
+  readonly stream: Stream.Stream<Uint8Array, CliFailure>;
+  readonly timeoutMs: number;
+  readonly deadlineNanos: bigint;
 }
 
 export interface DryRunResult extends ResultBase {
@@ -54,7 +56,7 @@ export interface HlidacRequest {
 }
 
 export interface HlidacClientService {
-  readonly execute: (request: HlidacRequest) => Effect.Effect<HlidacResult, CliFailure>;
+  readonly execute: (request: HlidacRequest) => Effect.Effect<HlidacResult, CliFailure, Scope.Scope>;
 }
 
 export class HlidacClient extends Context.Tag('HlidacClient')<HlidacClient, HlidacClientService>() {}
@@ -98,6 +100,8 @@ function responseResult(
   response: HttpClientResponse,
   method: string,
   url: string,
+  timeoutMs: number,
+  deadlineNanos: bigint,
 ): Effect.Effect<HlidacResult, unknown> {
   const contentType = response.headers['content-type'] ?? '';
   const base = { method, url, status: response.status, contentType, headers: response.headers };
@@ -105,9 +109,13 @@ function responseResult(
     return Effect.succeed({ _tag: 'TextResult', ...base, text: '' });
   }
   if (!isTextual(contentType)) {
-    return response.arrayBuffer.pipe(
-      Effect.map((buffer) => ({ _tag: 'BinaryResult' as const, ...base, bytes: new Uint8Array(buffer) })),
-    );
+    return Effect.succeed({
+      _tag: 'BinaryResult' as const,
+      ...base,
+      stream: response.stream.pipe(Stream.mapError(() => transportFailure(method, url))),
+      timeoutMs,
+      deadlineNanos,
+    });
   }
   return response.text.pipe(
     Effect.map((text): JsonResult | TextResult => {
@@ -123,6 +131,7 @@ function responseResult(
 }
 
 function liveClient(httpClient: HttpClient.HttpClient): HlidacClientService {
+  const scopedHttpClient = HttpClient.withScope(httpClient);
   return {
     execute: (input) =>
       Effect.gen(function* () {
@@ -170,8 +179,10 @@ function liveClient(httpClient: HttpClient.HttpClient): HlidacClientService {
           );
         }
 
-        return yield* httpClient.execute(request).pipe(
-          Effect.flatMap((response) => responseResult(response, method, url)),
+        const requestStartedAt = yield* Clock.currentTimeNanos;
+        const deadlineNanos = requestStartedAt + BigInt(Math.ceil(timeoutMs * 1_000_000));
+        return yield* scopedHttpClient.execute(request).pipe(
+          Effect.flatMap((response) => responseResult(response, method, url, timeoutMs, deadlineNanos)),
           Effect.mapError(() => transportFailure(method, url)),
           Effect.timeoutFail({
             duration: Duration.millis(timeoutMs),
@@ -197,7 +208,7 @@ export function hlidacRequest(
   query?: Record<string, QueryValue>,
   body?: unknown,
   options: { readonly dryRun?: boolean; readonly timeoutMs?: number } = {},
-): Effect.Effect<HlidacResult, CliFailure, HlidacClient> {
+): Effect.Effect<HlidacResult, CliFailure, HlidacClient | Scope.Scope> {
   return Effect.flatMap(HlidacClient, (client) =>
     client.execute({ method, path, query, body, dryRun: options.dryRun, timeoutMs: options.timeoutMs }),
   );

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import * as FetchHttpClient from '@effect/platform/FetchHttpClient';
-import { ConfigProvider, Effect, Layer } from 'effect';
+import { ConfigProvider, Effect, Layer, Stream } from 'effect';
 import { DEFAULT_TIMEOUT_MS, HlidacClientLive, type HlidacResult, hlidacRequest } from './api.js';
 import { CliFailure } from './errors.js';
 
@@ -12,7 +12,7 @@ function runRequest(
 ): Promise<HlidacResult> {
   const provider = ConfigProvider.fromMap(new Map(Object.entries(configuration)));
   return Effect.runPromise(
-    hlidacRequest(...request).pipe(Effect.provide(ClientLayer), Effect.withConfigProvider(provider)),
+    Effect.scoped(hlidacRequest(...request).pipe(Effect.provide(ClientLayer), Effect.withConfigProvider(provider))),
   );
 }
 
@@ -84,10 +84,12 @@ describe('HlidacClientLive', () => {
 
   test('fails with a redacted stable missing-credential error only for live default-base requests', async () => {
     const captured = await Effect.runPromise(
-      hlidacRequest('GET', '/x').pipe(
-        Effect.flip,
-        Effect.provide(ClientLayer),
-        Effect.withConfigProvider(ConfigProvider.fromMap(new Map())),
+      Effect.scoped(
+        hlidacRequest('GET', '/x').pipe(
+          Effect.flip,
+          Effect.provide(ClientLayer),
+          Effect.withConfigProvider(ConfigProvider.fromMap(new Map())),
+        ),
       ),
     );
     expect(captured).toBeInstanceOf(CliFailure);
@@ -97,11 +99,13 @@ describe('HlidacClientLive', () => {
 
   test('sanitizes invalid base URL configuration', async () => {
     const failure = await Effect.runPromise(
-      hlidacRequest('GET', '/x').pipe(
-        Effect.flip,
-        Effect.provide(ClientLayer),
-        Effect.withConfigProvider(
-          ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', 'https://user:secret@%invalid']])),
+      Effect.scoped(
+        hlidacRequest('GET', '/x').pipe(
+          Effect.flip,
+          Effect.provide(ClientLayer),
+          Effect.withConfigProvider(
+            ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', 'https://user:secret@%invalid']])),
+          ),
         ),
       ),
     );
@@ -114,11 +118,13 @@ describe('HlidacClientLive', () => {
     expect(JSON.stringify(failure)).not.toContain('secret');
 
     const userInfoFailure = await Effect.runPromise(
-      hlidacRequest('GET', '/x', { q: 'private-value' }).pipe(
-        Effect.flip,
-        Effect.provide(ClientLayer),
-        Effect.withConfigProvider(
-          ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', 'http://user:test-secret@127.0.0.1:9']])),
+      Effect.scoped(
+        hlidacRequest('GET', '/x', { q: 'private-value' }).pipe(
+          Effect.flip,
+          Effect.provide(ClientLayer),
+          Effect.withConfigProvider(
+            ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', 'http://user:test-secret@127.0.0.1:9']])),
+          ),
         ),
       ),
     );
@@ -132,10 +138,12 @@ describe('HlidacClientLive', () => {
       'file:///tmp/hlidac',
     ]) {
       const unsafeFailure = await Effect.runPromise(
-        hlidacRequest('GET', '/x').pipe(
-          Effect.flip,
-          Effect.provide(ClientLayer),
-          Effect.withConfigProvider(ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', unsafeBase]]))),
+        Effect.scoped(
+          hlidacRequest('GET', '/x').pipe(
+            Effect.flip,
+            Effect.provide(ClientLayer),
+            Effect.withConfigProvider(ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', unsafeBase]]))),
+          ),
         ),
       );
       expect(unsafeFailure).toMatchObject({ code: 'INVALID_INPUT' });
@@ -148,10 +156,12 @@ describe('HlidacClientLive', () => {
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
     const failure = await Effect.runPromise(
-      hlidacRequest('POST', '/x', undefined, cyclic).pipe(
-        Effect.flip,
-        Effect.provide(ClientLayer),
-        Effect.withConfigProvider(ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', 'http://127.0.0.1:9']]))),
+      Effect.scoped(
+        hlidacRequest('POST', '/x', undefined, cyclic).pipe(
+          Effect.flip,
+          Effect.provide(ClientLayer),
+          Effect.withConfigProvider(ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', 'http://127.0.0.1:9']]))),
+        ),
       ),
     );
 
@@ -161,10 +171,12 @@ describe('HlidacClientLive', () => {
   test('rejects invalid timeout values at the client boundary', async () => {
     for (const timeoutMs of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
       const failure = await Effect.runPromise(
-        hlidacRequest('GET', '/x', undefined, undefined, { timeoutMs }).pipe(
-          Effect.flip,
-          Effect.provide(ClientLayer),
-          Effect.withConfigProvider(ConfigProvider.fromMap(new Map())),
+        Effect.scoped(
+          hlidacRequest('GET', '/x', undefined, undefined, { timeoutMs }).pipe(
+            Effect.flip,
+            Effect.provide(ClientLayer),
+            Effect.withConfigProvider(ConfigProvider.fromMap(new Map())),
+          ),
         ),
       );
       expect(failure).toMatchObject({
@@ -194,19 +206,34 @@ describe('HlidacClientLive', () => {
     });
     const config = { HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}` };
     try {
-      const [json, invalidJson, empty, text, binary] = await Promise.all([
+      const [json, invalidJson, empty, text] = await Promise.all([
         runRequest(['GET', '/json'], config),
         runRequest(['GET', '/invalid-json'], config),
         runRequest(['GET', '/empty'], config),
         runRequest(['GET', '/text'], config),
-        runRequest(['GET', '/binary'], config),
       ]);
+      const binary = await Effect.runPromise(
+        Effect.scoped(
+          hlidacRequest('GET', '/binary').pipe(
+            Effect.flatMap((result) =>
+              result._tag === 'BinaryResult'
+                ? result.stream.pipe(
+                    Stream.runFold([] as number[], (bytes, chunk) => [...bytes, ...chunk]),
+                    Effect.map((bytes) => ({ result, bytes })),
+                  )
+                : Effect.die('expected binary response'),
+            ),
+            Effect.provide(ClientLayer),
+            Effect.withConfigProvider(ConfigProvider.fromMap(new Map(Object.entries(config)))),
+          ),
+        ),
+      );
       expect(json).toMatchObject({ _tag: 'JsonResult', status: 503, body: { reason: 'busy' } });
       expect(invalidJson).toMatchObject({ _tag: 'TextResult', text: '{broken' });
       expect(empty).toMatchObject({ _tag: 'TextResult', text: '' });
       expect(text).toMatchObject({ _tag: 'TextResult', text: 'hello' });
-      expect(binary._tag).toBe('BinaryResult');
-      if (binary._tag === 'BinaryResult') expect(Array.from(binary.bytes)).toEqual([0x50, 0x4b]);
+      expect(binary.result._tag).toBe('BinaryResult');
+      expect(binary.bytes).toEqual([0x50, 0x4b]);
     } finally {
       server.stop(true);
     }
@@ -226,20 +253,24 @@ describe('HlidacClientLive', () => {
     try {
       const [timeout, transport] = await Promise.all([
         Effect.runPromise(
-          hlidacRequest('GET', '/x', undefined, undefined, { timeoutMs: 20 }).pipe(
-            Effect.flip,
-            Effect.provide(ClientLayer),
-            Effect.withConfigProvider(
-              ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', `http://127.0.0.1:${delayed.port}`]])),
+          Effect.scoped(
+            hlidacRequest('GET', '/x', undefined, undefined, { timeoutMs: 20 }).pipe(
+              Effect.flip,
+              Effect.provide(ClientLayer),
+              Effect.withConfigProvider(
+                ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', `http://127.0.0.1:${delayed.port}`]])),
+              ),
             ),
           ),
         ),
         Effect.runPromise(
-          hlidacRequest('POST', '/x', undefined, undefined, { timeoutMs: 200 }).pipe(
-            Effect.flip,
-            Effect.provide(ClientLayer),
-            Effect.withConfigProvider(
-              ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', `http://127.0.0.1:${unavailablePort}`]])),
+          Effect.scoped(
+            hlidacRequest('POST', '/x', undefined, undefined, { timeoutMs: 200 }).pipe(
+              Effect.flip,
+              Effect.provide(ClientLayer),
+              Effect.withConfigProvider(
+                ConfigProvider.fromMap(new Map([['HLIDAC_STATU_BASE_URL', `http://127.0.0.1:${unavailablePort}`]])),
+              ),
             ),
           ),
         ),

@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type CommandPlan, type JsonSchema, type OpenApiSpec, planCommands } from './generator.js';
@@ -16,20 +16,27 @@ interface CliResult {
   stderr: string;
 }
 
-async function runCli(args: string[], env: Record<string, string> = {}): Promise<CliResult> {
+function spawnCli(args: string[], env: Record<string, string> = {}) {
   const { HLIDAC_STATU_API_TOKEN: _token, HLIDAC_STATU_BASE_URL: _baseUrl, ...cleanEnv } = process.env;
-  const child = Bun.spawn([Bun.which('bun') ?? 'bun', cliPath, ...args], {
+  return Bun.spawn([Bun.which('bun') ?? 'bun', cliPath, ...args], {
     cwd: cleanCwd,
     env: { ...cleanEnv, ...env },
     stdout: 'pipe',
     stderr: 'pipe',
   });
+}
+
+async function collectCli(child: ReturnType<typeof spawnCli>): Promise<CliResult> {
   const [exitCode, stdout, stderr] = await Promise.all([
     child.exited,
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
   ]);
   return { exitCode, stdout, stderr };
+}
+
+async function runCli(args: string[], env: Record<string, string> = {}): Promise<CliResult> {
+  return collectCli(spawnCli(args, env));
 }
 
 function optionValue(schema: JsonSchema | undefined): string {
@@ -371,6 +378,188 @@ describe('Effect CLI command surface', () => {
       expect(new URL(receivedUrl).searchParams.get('dotaz')).toBe('česká energie');
     } finally {
       server.stop(true);
+    }
+  });
+
+  test('streams binary output, drains structured output, and cancels an unused body', async () => {
+    const directory = mkdtempSync(join(cleanCwd, 'binary-'));
+    const rawDestination = join(directory, 'download.bin');
+    const envelopeDestination = join(directory, 'envelope.json');
+    const slowDestination = join(directory, 'slow.bin');
+    const controlledDestination = join(directory, 'controlled.bin');
+    let cancelled = false;
+    let releaseControlled = () => {};
+    const controlledRelease = new Promise<void>((resolve) => {
+      releaseControlled = resolve;
+    });
+    const server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        const path = new URL(request.url).pathname;
+        if (path.endsWith('/never')) {
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new Uint8Array([1]));
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+            { headers: { 'Content-Type': 'application/octet-stream' } },
+          );
+        }
+        if (path.endsWith('/slow')) {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new Uint8Array([1, 2]));
+                timer = setTimeout(() => {
+                  controller.enqueue(new Uint8Array([3, 4, 5]));
+                  controller.close();
+                }, 200);
+              },
+              cancel() {
+                if (timer) clearTimeout(timer);
+              },
+            }),
+            { headers: { 'Content-Type': 'application/octet-stream' } },
+          );
+        }
+        if (path.endsWith('/combined')) {
+          await Bun.sleep(70);
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new Uint8Array([1, 2]));
+                timer = setTimeout(() => {
+                  controller.enqueue(new Uint8Array([3, 4, 5]));
+                  controller.close();
+                }, 70);
+              },
+              cancel() {
+                if (timer) clearTimeout(timer);
+              },
+            }),
+            { headers: { 'Content-Type': 'application/octet-stream' } },
+          );
+        }
+        if (path.endsWith('/controlled')) {
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new Uint8Array([1, 2]));
+                void controlledRelease.then(() => {
+                  controller.enqueue(new Uint8Array([3, 4, 5]));
+                  controller.close();
+                });
+              },
+            }),
+            { headers: { 'Content-Type': 'application/octet-stream' } },
+          );
+        }
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1, 2]));
+            setTimeout(() => {
+              controller.enqueue(new Uint8Array([3, 4, 5]));
+              controller.close();
+            }, 20);
+          },
+        });
+        return new Response(stream, { headers: { 'Content-Type': 'application/octet-stream' } });
+      },
+    });
+    const env = { HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}/api/v2` };
+    try {
+      writeFileSync(rawDestination, 'original');
+      const raw = await runCli(['--output', rawDestination, 'raw', 'GET', '/binary'], env);
+      expect(raw).toEqual({ exitCode: 0, stdout: '', stderr: '' });
+      expect(Array.from(readFileSync(rawDestination))).toEqual([1, 2, 3, 4, 5]);
+
+      writeFileSync(controlledDestination, 'original');
+      const controlledChild = spawnCli(['--output', controlledDestination, 'raw', 'GET', '/controlled'], env);
+      let streamedPrefix: number[] | undefined;
+      for (let attempt = 0; attempt < 100 && !streamedPrefix; attempt++) {
+        for (const entry of readdirSync(directory, { recursive: true }).map(String)) {
+          const candidate = join(directory, entry);
+          if (entry.includes('.controlled.bin-') && statSync(candidate).isFile()) {
+            const bytes = readFileSync(candidate);
+            if (bytes.byteLength > 0) streamedPrefix = Array.from(bytes);
+          }
+        }
+        if (!streamedPrefix) await Bun.sleep(5);
+      }
+      expect(readFileSync(controlledDestination, 'utf8')).toBe('original');
+      releaseControlled();
+      expect(await collectCli(controlledChild)).toEqual({ exitCode: 0, stdout: '', stderr: '' });
+      expect(streamedPrefix).toEqual([1, 2]);
+      expect(Array.from(readFileSync(controlledDestination))).toEqual([1, 2, 3, 4, 5]);
+
+      const structured = await runCli(['--json', 'raw', 'GET', '/binary'], env);
+      expect(structured.exitCode).toBe(0);
+      expect(structured.stderr).toBe('');
+      expect(JSON.parse(structured.stdout)).toMatchObject({
+        body: null,
+        bodyBytes: 5,
+        contentType: 'application/octet-stream',
+      });
+
+      const structuredFile = await runCli(['--json', '--output', envelopeDestination, 'raw', 'GET', '/binary'], env);
+      expect(structuredFile).toEqual({ exitCode: 0, stdout: '', stderr: '' });
+      expect(JSON.parse(readFileSync(envelopeDestination, 'utf8'))).toMatchObject({ body: null, bodyBytes: 5 });
+
+      writeFileSync(slowDestination, 'original');
+      const timed = await runCli(['--timeout', '20ms', '--output', slowDestination, 'raw', 'GET', '/slow'], env);
+      expect(timed).toMatchObject({ exitCode: 1, stdout: '' });
+      expect(timed.stderr).toContain('request timed out after 20ms');
+      expect(readFileSync(slowDestination, 'utf8')).toBe('original');
+
+      const [combinedFile, combinedStructured] = await Promise.all([
+        runCli(['--timeout', '100ms', '--output', slowDestination, 'raw', 'GET', '/combined'], env),
+        runCli(['--json', '--timeout', '100ms', 'raw', 'GET', '/combined'], env),
+      ]);
+      expect(combinedFile.exitCode).toBe(1);
+      expect(combinedFile.stderr).toContain('request timed out after 100ms');
+      expect(readFileSync(slowDestination, 'utf8')).toBe('original');
+      expect(JSON.parse(combinedStructured.stdout)).toMatchObject({
+        error: { code: 'REQUEST_TIMEOUT', details: { timeoutMs: 100 } },
+      });
+
+      const rejected = await runCli(['raw', 'GET', '/never'], env);
+      expect(rejected).toMatchObject({ exitCode: 1, stdout: '' });
+      expect(rejected.stderr).toContain('use -o <path> to save');
+      for (let attempt = 0; attempt < 20 && !cancelled; attempt++) await Bun.sleep(5);
+      expect(cancelled).toBe(true);
+    } finally {
+      server.stop(true);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test('-o writes the exact selected text representation silently and reports output failures structurally', async () => {
+    const directory = mkdtempSync(join(cleanCwd, 'text-output-'));
+    const destination = join(directory, 'result.json');
+    const missingDestination = join(directory, 'missing', 'result.json');
+    const server = Bun.serve({ port: 0, fetch: () => Response.json({ ok: true }) });
+    const env = { HLIDAC_STATU_BASE_URL: `http://127.0.0.1:${server.port}/api/v2` };
+    try {
+      const stdout = await runCli(['raw', 'GET', '/json'], env);
+      const file = await runCli(['--output', destination, 'raw', 'GET', '/json'], env);
+      expect(file).toEqual({ exitCode: 0, stdout: '', stderr: '' });
+      expect(readFileSync(destination, 'utf8')).toBe(stdout.stdout);
+
+      const failure = await runCli(['--json', '--output', missingDestination, 'raw', 'GET', '/json'], env);
+      expect(failure.exitCode).toBe(1);
+      expect(failure.stderr).toBe('');
+      expect(JSON.parse(failure.stdout)).toMatchObject({
+        error: { code: 'OUTPUT_FAILURE', retryable: false, details: { destination: missingDestination } },
+      });
+    } finally {
+      server.stop(true);
+      rmSync(directory, { recursive: true, force: true });
     }
   });
 
