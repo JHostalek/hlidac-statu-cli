@@ -177,7 +177,7 @@ function attachAction(cmd: Command, plan: CommandPlan): void {
       try {
         body = JSON.parse(opts.data);
       } catch (err) {
-        emitOutcome({
+        return emitOutcome({
           stdout: '',
           stderr: `invalid --data JSON: ${err instanceof Error ? err.message : String(err)}`,
           exitCode: 2,
@@ -187,7 +187,7 @@ function attachAction(cmd: Command, plan: CommandPlan): void {
 
     const result = await hlidacRequest(plan.method, resolvedPath, query, body, { dryRun });
     const outcome: CliOutcome = json ? formatEnvelope(result, { dryRun, output }) : formatOutcome(result, { output });
-    emitOutcome(outcome);
+    return emitOutcome(outcome);
   });
 
   setPlan(cmd, plan);

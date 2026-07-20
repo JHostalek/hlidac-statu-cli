@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { spawnSync } from 'node:child_process';
 import type { HlidacResult } from './api.js';
 import { formatEnvelope, formatOutcome } from './output.js';
 
@@ -171,5 +172,19 @@ describe('formatEnvelope', () => {
     const parsed = JSON.parse(new TextDecoder().decode(outcome.file?.bytes));
     expect(parsed.dryRun).toBe(true);
     expect(parsed.ok).toBe(true);
+  });
+});
+
+describe('emitOutcome', () => {
+  test('drains large piped stdout before exiting', () => {
+    const outputModule = new URL('./output.ts', import.meta.url).href;
+    const size = 256 * 1024;
+    const script = `import { emitOutcome } from ${JSON.stringify(outputModule)}; emitOutcome({ stdout: 'x'.repeat(${size}), exitCode: 0 });`;
+    const result = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout.length).toBe(size + 1);
+    expect(result.stdout.endsWith('\n')).toBe(true);
   });
 });

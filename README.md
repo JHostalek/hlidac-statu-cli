@@ -85,6 +85,19 @@ hs --dry-run smlouvy hledat --dotaz x          # resolve URL, no API call (no to
 
 See [AGENTS.md](./AGENTS.md) for the full agent contract.
 
+### Codex skill
+
+The package includes `skills/hlidac-statu`, which teaches Codex how to translate English research intents into `hs` commands, follow identifiers across data domains, and avoid infrastructure endpoints.
+
+From a source checkout, install it into your personal Codex skills directory:
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/hlidac-statu "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+The same folder is included in the npm package and as `hlidac-statu-skill.tar.gz` in binary releases.
+
 ## exit codes
 
 | code | meaning                                                            |

@@ -84,6 +84,19 @@ export async function hlidacRequest(
   const response = await fetch(url, init);
   const contentType = response.headers.get('content-type') ?? '';
 
+  // IIS can omit Content-Type on textual HTTP errors (notably rate limits).
+  // Preserve their status and message instead of misreporting them as binary.
+  if (response.status >= 400 && contentType.trim() === '') {
+    const raw = await response.text();
+    let parsed: unknown;
+    try {
+      parsed = raw.length > 0 ? JSON.parse(raw) : undefined;
+    } catch {
+      parsed = undefined;
+    }
+    return { method: upperMethod, url, status: response.status, contentType, body: parsed, raw };
+  }
+
   if (!isJsonish(contentType)) {
     // Binary response: buffer the whole body. Adequate for current dump sizes (tens of KB);
     // switch to streaming if endpoints start returning hundreds of MB.

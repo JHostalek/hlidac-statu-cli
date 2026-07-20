@@ -71,6 +71,6 @@ export function registerSchema(program: Command): void {
     .action(() => {
       const entries = collectSchema(program);
       process.stdout.write(`${JSON.stringify(entries, null, 2)}\n`);
-      process.exit(0);
+      process.exitCode = 0;
     });
 }
