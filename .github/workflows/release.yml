@@ -7,6 +7,7 @@ on:
 
 concurrency:
   group: release
+  queue: max
   cancel-in-progress: false
 
 jobs:
@@ -37,7 +38,12 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "artifact=${ARTIFACT}" >> "$GITHUB_OUTPUT"
           if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$(git rev-list -n 1 "$TAG")" != "$GITHUB_SHA" ]; then
+              echo "Release $TAG belongs to an earlier commit; bump package.json version to release" >&2
+              exit 1
+            fi
             echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "release_exists=true" >> "$GITHUB_OUTPUT"
           elif git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
             if [ "$(git rev-list -n 1 "$TAG")" != "$GITHUB_SHA" ]; then
               echo "Tag $TAG belongs to an earlier commit; bump package.json version to release" >&2
@@ -93,3 +99,26 @@ jobs:
             --verify-tag \
             --generate-notes \
             --title "$TAG"
+
+      - name: Verify published release assets
+        if: steps.release.outputs.publish == 'true' || steps.release.outputs.release_exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ARTIFACT: ${{ steps.release.outputs.artifact }}
+        run: |
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep --fixed-strings --line-regexp "$ARTIFACT"
+          gh release view "$TAG" --json assets --jq '.assets[].name' | grep --fixed-strings --line-regexp "$ARTIFACT.sha256"
+
+      - name: Dispatch Homebrew update
+        if: steps.release.outputs.publish == 'true' || steps.release.outputs.release_exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh workflow run update-formula.yml \
+            --repo JHostalek/homebrew-tap \
+            --ref main \
+            -f formula=hs \
+            -f tag="$TAG" \
+            -f repository=JHostalek/hlidac-statu-cli

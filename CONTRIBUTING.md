@@ -59,6 +59,18 @@ bun run build
 
 No test requires the production API or a real token.
 
+## releases
+
+`package.json` is the release version source. A version change on `main` builds, verifies and publishes the sole supported `hs-macos-arm64-v<version>.tar.gz` archive plus its checksum and provenance attestation. Only after those assets exist does the workflow dispatch `update-formula.yml` in `JHostalek/homebrew-tap`.
+
+The first release has a strict merge order:
+
+1. Merge the tap branch containing both the bootstrap `Formula/hs.rb` and its updater workflow.
+2. Configure `TAP_GITHUB_TOKEN` in this repository with only Actions write access to `JHostalek/homebrew-tap`.
+3. Merge the source release branch. The v0.3 release then populates the placeholder formula and proves `brew install` plus `brew test` before the tap update is committed.
+
+Do not merge the placeholder formula alone as a steady state, and do not trigger the source release until the tap formula exists on `main`.
+
 ## reporting issues
 
 Include `hs --version`, Bun version, macOS version and architecture, the exact command, a redacted response, and reproduction steps. Never include API tokens, authorization headers, or private endpoint credentials.
